@@ -26,6 +26,8 @@ Diagram source: [architecture.svg](docs/assets/architecture.svg).
 
 ## Quick start
 
+The recommended way to install on Kubernetes is the Helm chart, published as an [OCI](https://opencontainers.org/) artifact on GHCR.
+
 ```console
 helm install hyperbilling-mcp oci://ghcr.io/kattler/charts/hyperbilling-mcp \
   --namespace kagent \
