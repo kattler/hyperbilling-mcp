@@ -2,6 +2,10 @@
 
 Register the server on a LiteLLM proxy to give every model and client behind the proxy the same billing tools, with LiteLLM handling keys, access control, and usage logs.
 
+![LiteLLM architecture](assets/architecture-litellm.png)
+
+Diagram source: [architecture-litellm.svg](assets/architecture-litellm.svg).
+
 ```yaml
 mcp_servers:
   hyperbilling:
