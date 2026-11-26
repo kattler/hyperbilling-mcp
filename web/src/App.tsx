@@ -106,6 +106,7 @@ function Page({ data, onLocale }: { data: DocsData; onLocale: (locale: Locale) =
           <Tools tools={data.tools} />
           <footer>
             hyperbilling-mcp v{data.version}
+            <span className="built">{t("footer.built", { date: data.built })}</span>
             <br />
             {t("footer.notice")}
           </footer>

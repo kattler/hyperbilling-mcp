@@ -151,8 +151,8 @@ export function Endpoints() {
   const rows = [
     { path: "/mcp", port: "http", purpose: t("endpoints.mcp") },
     { path: "/docs", port: "http", purpose: t("endpoints.docs") },
-    { path: "/healthz", port: "http", purpose: t("endpoints.healthz") },
-    { path: "/readyz", port: "http", purpose: t("endpoints.readyz") },
+    { path: "/healthz", port: "metrics", purpose: t("endpoints.healthz") },
+    { path: "/readyz", port: "metrics", purpose: t("endpoints.readyz") },
     { path: "/metrics", port: "metrics", purpose: t("endpoints.metrics") },
   ];
   return (

@@ -78,15 +78,23 @@ async fn run(
     .context("build HyperBilling client")?;
     let server = Server::new(Arc::new(client), metrics.clone());
 
-    let mut app = health_router();
+    let mut app = Router::new();
     if cfg.docs_enabled {
-        let pages = docs::Pages::render(env!("CARGO_PKG_VERSION"), &server.tool_docs());
+        let pages = docs::Pages::render(
+            env!("CARGO_PKG_VERSION"),
+            env!("BUILD_DATE"),
+            &server.tool_docs(),
+        );
         app = app.merge(docs::router(pages));
     }
     let app = app.merge(mcp_router(server, &shutdown));
     tokio::try_join!(
         serve(listener, app, shutdown.clone()),
-        serve(metrics_listener, metrics_router(metrics), shutdown),
+        serve(
+            metrics_listener,
+            health_router().merge(metrics_router(metrics)),
+            shutdown
+        ),
     )
     .context("http server")?;
     Ok(())
@@ -225,13 +233,12 @@ mod tests {
         assert_eq!(seen.client_id, "caller@example.com");
         assert_eq!(seen.client_secret, "caller-key");
 
-        assert_eq!(
-            reqwest::get(format!("{base}/healthz"))
-                .await
-                .unwrap()
-                .status(),
-            200
-        );
+        for path in ["/healthz", "/readyz"] {
+            let internal = reqwest::get(format!("{metrics_base}{path}")).await.unwrap();
+            assert_eq!(internal.status(), 200, "{path}");
+            let routed = reqwest::get(format!("{base}{path}")).await.unwrap();
+            assert_eq!(routed.status(), 404, "{path} stays off the routed port");
+        }
         let metrics = reqwest::get(format!("{metrics_base}/metrics"))
             .await
             .unwrap()
@@ -325,17 +332,10 @@ mod tests {
     async fn docs_can_be_disabled() {
         let (base, shutdown, handle) = spawn(&["--docs-enabled", "false"]).await;
 
-        for path in ["/", "/docs"] {
+        for path in ["/", "/docs", "/docs/app.js"] {
             let response = reqwest::get(format!("{base}{path}")).await.unwrap();
             assert_eq!(response.status(), 404, "{path}");
         }
-        assert_eq!(
-            reqwest::get(format!("{base}/healthz"))
-                .await
-                .unwrap()
-                .status(),
-            200
-        );
 
         shutdown.cancel();
         handle.await.unwrap().unwrap();

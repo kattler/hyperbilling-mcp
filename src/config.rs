@@ -8,11 +8,11 @@ use crate::hyperbilling::Credentials;
 #[derive(Clone, Parser)]
 #[command(name = "hyperbilling-mcp", version, about)]
 pub struct Config {
-    /// Port for the MCP endpoint, /healthz, and /readyz
+    /// Port for the MCP endpoint and the documentation page
     #[arg(long, env = "LISTEN_PORT", default_value_t = 8080)]
     pub listen_port: u16,
 
-    /// Port for /metrics
+    /// Port for /metrics, /healthz, and /readyz
     #[arg(long, env = "METRICS_PORT", default_value_t = 8081)]
     pub metrics_port: u16,
 

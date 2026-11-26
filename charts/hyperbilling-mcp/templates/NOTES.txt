@@ -1,5 +1,5 @@
 {{ include "hyperbilling-mcp.fullname" . }} serves MCP at http://{{ include "hyperbilling-mcp.fullname" . }}.{{ .Release.Namespace }}:{{ .Values.ports.http }}/mcp ({{ if include "hyperbilling-mcp.fallbackEnabled" . }}fallback credential configured{{ else }}callers must send X-Client-Id and X-Client-Secret{{ end }}).
 {{- if and (or .Values.httpRoute.enabled .Values.ingress.enabled) (include "hyperbilling-mcp.fallbackEnabled" .) }}
 
-WARNING: the MCP endpoint is routed outside the cluster while a fallback credential is configured. Anyone who can reach the route reads the billing data without credentials. Remove the fallback credential or authenticate at the gateway.
+WARNING: the server is routed outside the cluster while a fallback credential is configured. Anyone who can reach the route reads the billing data without credentials. Remove the fallback credential or authenticate at the gateway.
 {{- end }}

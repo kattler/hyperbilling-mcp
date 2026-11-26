@@ -57,9 +57,9 @@ extraEnvFrom: []
   # - secretRef:
   #     name: extra-secret
 ports:
-  # -- (int) Port for `/mcp`, `/docs`, `/healthz`, and `/readyz`
+  # -- (int) Port for `/mcp` and `/docs`, the only port a route reaches
   http: 8080
-  # -- (int) Port for `/metrics`
+  # -- (int) Port for `/metrics`, `/healthz`, and `/readyz`, never routed
   metrics: 8081
 serviceAccount:
   # -- (bool) Create a ServiceAccount
@@ -92,11 +92,11 @@ httpRoute:
   # -- (list) Hostnames the route matches
   hostnames: []
     # - hyperbilling-mcp.example.com
-  # -- (list) Request matches sent to the http port. `/docs` stays unrouted unless added
+  # -- (list) Request matches sent to the http port, which serves only `/mcp` and `/docs`
   matches:
     - path:
         type: PathPrefix
-        value: /mcp
+        value: /
   # -- (list) Filters applied to matched requests
   filters: []
 ingress:
@@ -108,11 +108,11 @@ ingress:
   annotations: {}
   # -- (object) Extra Ingress labels
   labels: {}
-  # -- (list) Hosts and their paths sent to the http port. `/docs` stays unrouted unless added
+  # -- (list) Hosts and their paths sent to the http port, which serves only `/mcp` and `/docs`
   hosts:
     - host: hyperbilling-mcp.example.com
       paths:
-        - path: /mcp
+        - path: /
           pathType: Prefix
   # -- (list) TLS hosts and their certificate Secrets
   tls: []

@@ -19,5 +19,6 @@ export interface Tool {
 export interface DocsData {
   locale: Locale;
   version: string;
+  built: string;
   tools: Tool[];
 }

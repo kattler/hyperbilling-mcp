@@ -97,8 +97,8 @@ The following table lists the configurable parameters and their default values.
 | log.format | string | `"json"` | Log format: json or text |
 | extraEnv | list | `[]` | Extra container env entries |
 | extraEnvFrom | list | `[]` | Extra container envFrom entries |
-| ports.http | int | `8080` | Port for `/mcp`, `/docs`, `/healthz`, and `/readyz` |
-| ports.metrics | int | `8081` | Port for `/metrics` |
+| ports.http | int | `8080` | Port for `/mcp` and `/docs`, the only port a route reaches |
+| ports.metrics | int | `8081` | Port for `/metrics`, `/healthz`, and `/readyz`, never routed |
 | serviceAccount.create | bool | `true` | Create a ServiceAccount |
 | serviceAccount.name | string | `""` | ServiceAccount name. Empty uses the full name |
 | serviceAccount.annotations | object | `{}` | ServiceAccount annotations |
@@ -110,13 +110,13 @@ The following table lists the configurable parameters and their default values.
 | httpRoute.labels | object | `{}` | Extra HTTPRoute labels |
 | httpRoute.parentRefs | list | `[]` | Gateways the route attaches to |
 | httpRoute.hostnames | list | `[]` | Hostnames the route matches |
-| httpRoute.matches | list | `[{"path":{"type":"PathPrefix","value":"/mcp"}}]` | Request matches sent to the http port. `/docs` stays unrouted unless added |
+| httpRoute.matches | list | `[{"path":{"type":"PathPrefix","value":"/"}}]` | Request matches sent to the http port, which serves only `/mcp` and `/docs` |
 | httpRoute.filters | list | `[]` | Filters applied to matched requests |
 | ingress.enabled | bool | `false` | Create an Ingress |
 | ingress.className | string | `""` | IngressClass name. Empty uses the cluster default |
 | ingress.annotations | object | `{}` | Ingress annotations |
 | ingress.labels | object | `{}` | Extra Ingress labels |
-| ingress.hosts | list | `[{"host":"hyperbilling-mcp.example.com","paths":[{"path":"/mcp","pathType":"Prefix"}]}]` | Hosts and their paths sent to the http port. `/docs` stays unrouted unless added |
+| ingress.hosts | list | `[{"host":"hyperbilling-mcp.example.com","paths":[{"path":"/","pathType":"Prefix"}]}]` | Hosts and their paths sent to the http port, which serves only `/mcp` and `/docs` |
 | ingress.tls | list | `[]` | TLS hosts and their certificate Secrets |
 | serviceMonitor.enabled | bool | `false` | Create a ServiceMonitor |
 | serviceMonitor.interval | string | `"30s"` | Scrape interval |

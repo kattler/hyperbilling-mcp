@@ -1,6 +1,6 @@
 # Metrics
 
-Prometheus metrics are served at `/metrics` on their own port (`8081` by default), so the Service keeps them off the client-facing port. The chart creates a ServiceMonitor with `serviceMonitor.enabled`.
+Prometheus metrics are served at `/metrics` on their own port (`8081` by default), next to the `/healthz` and `/readyz` probes, so a route to the client-facing port never reaches them. The chart creates a ServiceMonitor with `serviceMonitor.enabled`.
 
 | Metric | Labels | Description |
 | --- | --- | --- |

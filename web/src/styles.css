@@ -313,6 +313,7 @@ td .type { color: var(--faint); font: 12px var(--mono); }
 .method.post { color: var(--green); background: var(--green-bg); }
 .tool .table { margin: 16px 0 0; }
 .none { margin: 16px 0 0; color: var(--faint); font-size: 13px; }
+footer .built::before { content: "·"; margin: 0 .5em; }
 footer { margin-top: 96px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--faint); font-size: 13px; }
 @media (max-width: 860px) {
   html { scroll-padding-top: 120px; }

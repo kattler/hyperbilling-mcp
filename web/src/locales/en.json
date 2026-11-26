@@ -84,6 +84,7 @@
   "endpoints.metrics": "Prometheus metrics for tool calls, tool latency, and API requests.",
   "tools.title": "Tools",
   "tools.body": "Generated from the tool definitions this server registers, so it always matches what <code>tools/list</code> returns.",
+  "footer.built": "Built {{date}} (UTC)",
   "footer.notice": "An unofficial tool, not affiliated with or endorsed by MegazoneCloud. HyperBilling and its logo are trademarks of their owner.",
   "ui.language": "Language",
   "ui.permalink": "Link to this section",

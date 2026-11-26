@@ -16,9 +16,10 @@ First release.
 - Documentation page at `/docs` in English and Korean, a React application embedded in the binary and rendered from the registered tool definitions. The theme and the language follow the browser, and the layout is responsive.
 - Setup prompt on the documentation page. It carries the address the page was opened at, so pasting it into an MCP client registers this server.
 - Copy button on every code block of the documentation page.
+- Build date in the footer of the documentation page.
 - Animated architecture diagrams on the documentation page for a direct MCP client and for a LiteLLM proxy in front.
-- Prometheus metrics on a separate port for tool calls, tool latency, and API requests.
-- `/healthz` and `/readyz` probes, and graceful shutdown on SIGTERM.
+- Prometheus metrics on a separate port for tool calls, tool latency, and API requests. The client-facing port serves only `/mcp` and `/docs`.
+- `/healthz` and `/readyz` probes on the metrics port, and graceful shutdown on SIGTERM.
 
 ### Security
 
@@ -30,6 +31,6 @@ First release.
 
 - Deployment, Service, ServiceAccount, optional Secret, and optional ServiceMonitor.
 - `values.schema.json` that rejects unknown keys and wrong types.
-- Optional HTTPRoute and Ingress that route `/mcp` from outside the cluster, both off by default.
+- Optional HTTPRoute and Ingress that route the whole hostname to the client-facing port, both off by default.
 - `extraObjects` rendered through `tpl`, with a NetworkPolicy example.
 - In-place resize policy: a CPU change does not restart the container, a memory change does.

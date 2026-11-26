@@ -1,6 +1,6 @@
 # Documentation page
 
-The server embeds its own documentation at `/docs` on the MCP port. Set `DOCS_ENABLED=false` (chart value `docs.enabled`) to turn it off.
+The server embeds its own documentation at `/docs` on the MCP port, so a route that exposes the server exposes the page too. Set `DOCS_ENABLED=false` (chart value `docs.enabled`) to turn it off.
 
 ## Content
 
@@ -8,6 +8,7 @@ The server embeds its own documentation at `/docs` on the MCP port. Set `DOCS_EN
 - Connection, authentication, limits, errors, and endpoints.
 - A setup prompt in the connection section. Pasted into an MCP client, it has the agent register this server. Its URL is the address the page was opened at.
 - A copy button on every code block, shown on hover or focus.
+- A footer with the version and the build date in UTC.
 - A tool reference rendered at startup from the registered tool definitions, so it always matches what `tools/list` returns.
 
 Every section and tool heading carries a link marker for sharing a direct link.

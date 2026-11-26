@@ -28,7 +28,7 @@ MCP sessions live in Pod memory, so run one replica unless the route in front ha
 
 ## Expose outside the cluster
 
-The Service is `ClusterIP`. To reach the server from outside the cluster, enable an HTTPRoute or an Ingress. Both route only `/mcp` by default, so `/docs` stays inside the cluster unless you add it.
+The Service is `ClusterIP`. To reach the server from outside the cluster, enable an HTTPRoute or an Ingress. Both route the whole hostname to the http port by default, which serves `/mcp` and the documentation page at `/docs`. Probes and metrics are on the other port and are never routed. Set `docs.enabled=false` to keep the documentation page off.
 
 ```console
 helm upgrade hyperbilling-mcp oci://ghcr.io/kattler/charts/hyperbilling-mcp \

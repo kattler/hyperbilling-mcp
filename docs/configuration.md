@@ -4,8 +4,8 @@ Every flag falls back to an environment variable, which is how the chart sets it
 
 | Flag | Environment variable | Default | Description |
 | --- | --- | --- | --- |
-| `--listen-port` | `LISTEN_PORT` | `8080` | Port for `/mcp`, `/docs`, `/healthz`, and `/readyz` |
-| `--metrics-port` | `METRICS_PORT` | `8081` | Port for `/metrics` |
+| `--listen-port` | `LISTEN_PORT` | `8080` | Port for `/mcp` and `/docs` |
+| `--metrics-port` | `METRICS_PORT` | `8081` | Port for `/metrics`, `/healthz`, and `/readyz` |
 | `--hyperbilling-url` | `HYPERBILLING_URL` | `https://open.hyperapi.megazone.com` | Open API base URL |
 | `--hyperbilling-client-id` | `HYPERBILLING_CLIENT_ID` | empty | Fallback client ID |
 | `--hyperbilling-client-secret` | `HYPERBILLING_CLIENT_SECRET` | empty | Fallback Open API key |
@@ -20,9 +20,11 @@ Every flag falls back to an environment variable, which is how the chart sets it
 | --- | --- | --- |
 | `/mcp` | http | MCP over streamable HTTP |
 | `/docs` | http | Documentation page. `/` redirects to it |
-| `/healthz` | http | Liveness |
-| `/readyz` | http | Readiness |
+| `/healthz` | metrics | Liveness |
+| `/readyz` | metrics | Readiness |
 | `/metrics` | metrics | Prometheus metrics |
+
+The http port carries only what a client may see, so a route can send a whole hostname to it. Probes and metrics stay on the metrics port, which no route reaches.
 
 ## TLS trust
 

@@ -84,6 +84,7 @@
   "endpoints.metrics": "도구 호출, 도구 지연 시간, API 요청에 대한 Prometheus 메트릭.",
   "tools.title": "도구",
   "tools.body": "서버가 등록한 도구 정의에서 생성하므로 <code>tools/list</code>가 돌려주는 내용과 항상 같습니다.",
+  "footer.built": "빌드 {{date}} (UTC)",
   "footer.notice": "메가존클라우드와 제휴하거나 승인받지 않은 비공식 도구입니다. HyperBilling과 그 로고는 해당 소유자의 상표입니다.",
   "ui.language": "언어",
   "ui.permalink": "이 섹션으로 가는 링크",

@@ -65,10 +65,10 @@ pub struct Pages {
 }
 
 impl Pages {
-    pub fn render(version: &str, tools: &[ToolDoc]) -> Arc<Self> {
+    pub fn render(version: &str, built: &str, tools: &[ToolDoc]) -> Arc<Self> {
         Arc::new(Self {
-            en: render(Locale::En, version, tools),
-            ko: render(Locale::Ko, version, tools),
+            en: render(Locale::En, version, built, tools),
+            ko: render(Locale::Ko, version, built, tools),
         })
     }
 
@@ -134,6 +134,7 @@ fn asset(content_type: &'static str, body: &'static str) -> Response {
 struct Payload<'a> {
     locale: &'static str,
     version: &'a str,
+    built: &'a str,
     tools: Vec<Tool<'a>>,
 }
 
@@ -155,10 +156,11 @@ struct Argument {
     values: Vec<String>,
 }
 
-fn render(locale: Locale, version: &str, tools: &[ToolDoc]) -> String {
+fn render(locale: Locale, version: &str, built: &str, tools: &[ToolDoc]) -> String {
     let payload = Payload {
         locale: locale.code(),
         version,
+        built,
         tools: tools
             .iter()
             .map(|tool| {
@@ -307,6 +309,7 @@ mod tests {
         let page = render(
             Locale::En,
             "1.2.3",
+            "2026-01-02",
             &[
                 tool(
                     "hyperbilling_search_billing",
@@ -338,6 +341,7 @@ mod tests {
         let data = payload(&page);
         assert_eq!(data["locale"], "en");
         assert_eq!(data["version"], "1.2.3");
+        assert_eq!(data["built"], "2026-01-02");
         let search = &data["tools"][0];
         assert_eq!(search["name"], "hyperbilling_search_billing");
         assert_eq!(search["description"], "Lists <things> & more</script>");
@@ -410,7 +414,7 @@ mod tests {
     #[test]
     fn page_carries_the_real_tool_definitions() {
         let tools = real_tools();
-        let page = render(Locale::Ko, "1.2.3", &tools);
+        let page = render(Locale::Ko, "1.2.3", "2026-01-02", &tools);
         assert!(page.contains(r#"<html lang="ko">"#));
         let data = payload(&page);
         assert_eq!(data["locale"], "ko");
