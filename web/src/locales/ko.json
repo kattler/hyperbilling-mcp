@@ -161,7 +161,7 @@
   "api.summary.tag": "연결 계정별 비용 할당 태그 키.",
   "api.summary.linkedaccount": "자격 증명으로 읽을 수 있는 연결 계정.",
   "api.summary.estimated": "이번 달 예상 비용.",
-  "api.estimated.body": "일별 비용 추세로 이번 달 비용을 추정합니다. 금액은 USD, 날짜는 UTC입니다. 이번 달 데이터가 부족하면 400으로 응답합니다. 실제 호출로 확인하지 못해 예시는 공식 가이드의 것입니다.",
+  "api.estimated.body": "일별 비용 추세로 이번 달 비용을 추정합니다. 금액은 USD, 날짜는 UTC입니다. 이번 달 데이터가 부족하면 400으로 응답합니다.",
   "api.est.current": "이번 달 1일부터 <code>latestBillingDate</code>까지의 합계 비용.",
   "api.est.estimated": "이번 달 전체 예상 비용. 일별 비용의 선형 회귀로 계산합니다.",
   "api.est.last_month": "지난달 합계 비용.",

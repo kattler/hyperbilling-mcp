@@ -161,7 +161,7 @@
   "api.summary.tag": "Cost allocation tag keys of each linked account.",
   "api.summary.linkedaccount": "Linked accounts the credentials can read.",
   "api.summary.estimated": "Estimated cost of the current month.",
-  "api.estimated.body": "Estimates the cost of the current month from the daily cost trend. Amounts are in USD and dates are in UTC. It answers 400 while the month has too little data. The example comes from the official guide, since this request was not checked live.",
+  "api.estimated.body": "Estimates the cost of the current month from the daily cost trend. Amounts are in USD and dates are in UTC. It answers 400 while the month has too little data.",
   "api.est.current": "Total cost from the first day of the month to <code>latestBillingDate</code>.",
   "api.est.estimated": "Estimated cost of the whole month, a linear regression over the daily costs.",
   "api.est.last_month": "Total cost of the previous month.",

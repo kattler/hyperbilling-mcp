@@ -26,7 +26,7 @@ The data is the same check that gates readiness. The endpoint returns only times
 
 `/docs/api` is a reference for the HyperBilling Open API, written from the official guide (V1.4.1) and checked against the live API. It covers the base URL and headers, all 11 requests with a request and a response example, every `Filter` field, the grouping dimensions and measures, the response format, status codes, limits, and region abbreviations. Each request links to the tool that calls it.
 
-Where the live API behaved differently from the guide, the page says so in the description. `/v2/search/billing/estimated` is documented from the guide alone. Examples use placeholder account IDs and amounts.
+Where the live API behaved differently from the guide, the page says so in the description. Examples use placeholder account IDs and amounts.
 
 The page links to the official guide, which remains the source of truth. When the guide changes, recheck the page and update `GUIDE_VERSION` in `web/src/Api.tsx`.
 
