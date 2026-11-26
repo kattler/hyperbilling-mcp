@@ -1,11 +1,3 @@
-<!doctype html>
-<html lang="{{lang}}">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="dark light">
-<title>{{t:title}}</title>
-<style>
 :root {
   --bg: #000;
   --surface: #0a0a0a;
@@ -92,21 +84,23 @@ code, pre { font-family: var(--mono); font-size: 13px; }
   border: 1px solid var(--border-strong); border-radius: 10px;
   background: var(--bg); box-shadow: 0 8px 30px var(--shadow);
 }
-.lang .menu a {
+.lang .menu button {
+  width: 100%; border: 0; background: none; font-family: inherit; cursor: pointer;
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
   min-height: 36px; padding: 0 10px; border-radius: 6px;
   color: var(--muted); font-size: 13px; white-space: nowrap;
   transition: color .15s, background .15s;
 }
-.lang .menu a:hover, .lang .menu a:focus-visible { color: var(--fg); background: var(--hover); outline: none; }
-.lang .menu a.on { color: var(--fg); }
-.lang .menu a.on::after {
+.lang .menu button:hover, .lang .menu button:focus-visible { color: var(--fg); background: var(--hover); outline: none; }
+.lang .menu button.on { color: var(--fg); }
+.lang .menu button.on::after {
   content: ""; width: 5px; height: 9px; margin-top: -3px;
   border-right: 1.5px solid var(--fg); border-bottom: 1.5px solid var(--fg);
   transform: rotate(45deg);
 }
 p, td, li, .upstream code { overflow-wrap: anywhere; }
 :lang(ko) body { word-break: keep-all; }
+.logo-wrap { display: contents; }
 .logo { display: block; flex: none; width: auto; height: 17px; color: var(--fg); }
 .node .logo { height: 15px; margin: 3px 0 1px; }
 .node .api { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 7px; }
@@ -267,6 +261,20 @@ pre {
   background: var(--surface); color: var(--fg);
   overflow-x: auto; line-height: 1.7;
 }
+.snippet { position: relative; }
+.snippet pre { padding-right: 52px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.copy {
+  position: absolute; top: 8px; right: 8px;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; padding: 0;
+  border: 1px solid var(--border-strong); border-radius: 6px;
+  background: var(--bg); color: var(--muted);
+  cursor: pointer; opacity: 0; transition: opacity .15s, color .15s, background .15s;
+}
+.snippet:hover .copy, .copy:focus-visible, .copy.done { opacity: 1; }
+.copy:hover, .copy:focus-visible { color: var(--fg); background: var(--hover); outline: none; }
+.copy.done { color: var(--green); }
+@media (hover: none) { .copy { opacity: 1; } }
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
 .card { padding: 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
 .card strong { display: block; font-size: 20px; font-weight: 600; letter-spacing: -.02em; }
@@ -364,161 +372,3 @@ footer { margin-top: 96px; padding-top: 24px; border-top: 1px solid var(--border
   * { transition: none !important; }
   .link i { animation: none; }
 }
-</style>
-</head>
-<body>
-<div class="top"><div class="bar">
-  {{logo}}
-  <span class="sep" aria-hidden="true">/</span>
-  <span class="brand">hyperbilling-mcp</span>
-  <span class="sep docs" aria-hidden="true">/</span>
-  <span class="muted">{{t:docs}}</span>
-  <span class="end"><span class="pill">v{{version}}</span>{{switcher}}</span>
-</div></div>
-<div class="shell">
-<nav aria-label="{{t:nav.label}}">
-  <h2>{{t:nav.guide}}</h2>
-  <a href="#overview">{{t:nav.overview}}</a>
-  <a href="#architecture">{{t:nav.architecture}}</a>
-  <a href="#connect">{{t:nav.connect}}</a>
-  <a href="#authentication">{{t:nav.authentication}}</a>
-  <a href="#limits">{{t:nav.limits}}</a>
-  <a href="#errors">{{t:nav.errors}}</a>
-  <a href="#endpoints">{{t:nav.endpoints}}</a>
-  <h2>{{t:nav.tools}}</h2>
-{{nav}}
-</nav>
-<main>
-  <div class="hero" id="overview">
-    <h1>{{t:hero.title}}<a class="anchor" href="#overview" aria-label="{{t:ui.permalink}}">#</a></h1>
-    <p>{{t:hero.body}}</p>
-  </div>
-
-  <section id="architecture">
-    <h2>{{t:arch.title}}<a class="anchor" href="#architecture" aria-label="{{t:ui.permalink}}">#</a></h2>
-    <details class="arch" id="arch-direct">
-      <summary><span class="head"><strong>{{t:arch.direct}}</strong><span>{{t:arch.direct.hint}}</span></span></summary>
-      <div class="body">
-      <div class="flow" role="img" aria-label="{{t:flow.label}}">
-        <div class="node"><span class="kind">{{t:flow.agent.kind}}</span><strong>{{t:flow.agent}}</strong><span class="detail">{{t:flow.agent.detail}}</span></div>
-        <div class="link" aria-hidden="true"><span class="label">{{t:flow.link.mcp}}</span><i></i><i class="back d3"></i></div>
-        <div class="node self"><span class="kind">{{t:flow.server.kind}}</span><strong>hyperbilling-mcp</strong><span class="detail">{{t:flow.server.detail}}</span></div>
-        <div class="link" aria-hidden="true"><span class="label">{{t:flow.link.api}}</span><i class="d1"></i><i class="back d2"></i></div>
-        <div class="node"><span class="kind">{{t:flow.api.kind}}</span><strong class="api">{{logo}}<span>Open API</span></strong><span class="detail">{{t:flow.api.detail}}</span></div>
-      </div>
-      <ol class="steps">
-        <li>{{t:flow.step1}}</li>
-        <li>{{t:flow.step2}}</li>
-        <li>{{t:flow.step3}}</li>
-        <li>{{t:flow.step4}}</li>
-      </ol>
-      </div>
-    </details>
-    <details class="arch" id="arch-litellm">
-      <summary><span class="head"><strong>{{t:litellm.title}}</strong><span>{{t:arch.litellm.hint}}</span></span></summary>
-      <div class="body">
-      <p>{{t:litellm.body}}</p>
-      <div class="flow four" role="img" aria-label="{{t:litellm.label}}">
-        <div class="node"><span class="kind">{{t:litellm.clients.kind}}</span><strong>{{t:litellm.clients}}</strong><span class="detail">{{t:litellm.clients.detail}}</span></div>
-        <div class="link" aria-hidden="true"><span class="label">{{t:litellm.link.proxy}}</span><i></i><i class="back d5"></i></div>
-        <div class="node"><span class="kind">{{t:litellm.proxy.kind}}</span><strong>LiteLLM</strong><span class="detail">{{t:litellm.proxy.detail}}</span></div>
-        <div class="link" aria-hidden="true"><span class="label">{{t:flow.link.mcp}}</span><i class="d1"></i><i class="back d4"></i></div>
-        <div class="node self"><span class="kind">{{t:flow.server.kind}}</span><strong>hyperbilling-mcp</strong><span class="detail">{{t:flow.server.detail}}</span></div>
-        <div class="link" aria-hidden="true"><span class="label">{{t:flow.link.api}}</span><i class="d2"></i><i class="back d3"></i></div>
-        <div class="node"><span class="kind">{{t:flow.api.kind}}</span><strong class="api">{{logo}}<span>Open API</span></strong><span class="detail">{{t:flow.api.detail}}</span></div>
-      </div>
-      <p class="after-flow">{{t:litellm.config}}</p>
-<pre>mcp_servers:
-  hyperbilling:
-    url: "http://hyperbilling-mcp.example.com:8080/mcp"
-    transport: "http"
-    extra_headers: ["X-Client-Id", "X-Client-Secret"]</pre>
-      <p>{{t:litellm.endpoint}}</p>
-      <p>{{t:litellm.credentials}}</p>
-      </div>
-    </details>
-  </section>
-
-  <section id="connect">
-    <h2>{{t:connect.title}}<a class="anchor" href="#connect" aria-label="{{t:ui.permalink}}">#</a></h2>
-    <p>{{t:connect.body}}</p>
-<pre>{
-  "mcpServers": {
-    "hyperbilling": {
-      "type": "http",
-      "url": "http://hyperbilling-mcp.example.com:8080/mcp",
-      "headers": {
-        "X-Client-Id": "user@example.com",
-        "X-Client-Secret": "${HYPERBILLING_API_KEY}"
-      }
-    }
-  }
-}</pre>
-    <p>{{t:connect.start}}</p>
-  </section>
-
-  <section id="authentication">
-    <h2>{{t:auth.title}}<a class="anchor" href="#authentication" aria-label="{{t:ui.permalink}}">#</a></h2>
-    <p>{{t:auth.body}}</p>
-    <div class="table"><table>
-      <thead><tr><th>{{t:auth.header}}</th><th>{{t:auth.value}}</th></tr></thead>
-      <tbody>
-        <tr><td><span class="name">X-Client-Id</span></td><td>{{t:auth.client_id}}</td></tr>
-        <tr><td><span class="name">X-Client-Secret</span></td><td>{{t:auth.client_secret}}</td></tr>
-      </tbody>
-    </table></div>
-    <p>{{t:auth.fallback}}</p>
-  </section>
-
-  <section id="limits">
-    <h2>{{t:limits.title}}<a class="anchor" href="#limits" aria-label="{{t:ui.permalink}}">#</a></h2>
-    <p>{{t:limits.body}}</p>
-    <div class="grid">
-      <div class="card"><strong>500</strong><span>{{t:limits.requests}}</span></div>
-      <div class="card"><strong>1000</strong><span>{{t:limits.rows}}</span></div>
-      <div class="card"><strong>5</strong><span>{{t:limits.dimensions}}</span></div>
-      <div class="card"><strong>{{t:limits.daily.value}}</strong><span>{{t:limits.daily}}</span></div>
-      <div class="card"><strong>{{t:limits.monthly.value}}</strong><span>{{t:limits.monthly}}</span></div>
-    </div>
-  </section>
-
-  <section id="errors">
-    <h2>{{t:errors.title}}<a class="anchor" href="#errors" aria-label="{{t:ui.permalink}}">#</a></h2>
-    <p>{{t:errors.body}}</p>
-    <div class="table"><table>
-      <thead><tr><th>{{t:errors.status}}</th><th>{{t:errors.meaning}}</th></tr></thead>
-      <tbody>
-        <tr><td><span class="name">204</span></td><td>{{t:errors.204}}</td></tr>
-        <tr><td><span class="name">400</span></td><td>{{t:errors.400}}</td></tr>
-        <tr><td><span class="name">401</span></td><td>{{t:errors.401}}</td></tr>
-        <tr><td><span class="name">403</span></td><td>{{t:errors.403}}</td></tr>
-        <tr><td><span class="name">429</span></td><td>{{t:errors.429}}</td></tr>
-      </tbody>
-    </table></div>
-  </section>
-
-  <section id="endpoints">
-    <h2>{{t:endpoints.title}}<a class="anchor" href="#endpoints" aria-label="{{t:ui.permalink}}">#</a></h2>
-    <div class="table"><table>
-      <thead><tr><th>{{t:endpoints.path}}</th><th>{{t:endpoints.port}}</th><th>{{t:endpoints.purpose}}</th></tr></thead>
-      <tbody>
-        <tr><td><span class="name">/mcp</span></td><td>http</td><td>{{t:endpoints.mcp}}</td></tr>
-        <tr><td><span class="name">/docs</span></td><td>http</td><td>{{t:endpoints.docs}}</td></tr>
-        <tr><td><span class="name">/healthz</span></td><td>http</td><td>{{t:endpoints.healthz}}</td></tr>
-        <tr><td><span class="name">/readyz</span></td><td>http</td><td>{{t:endpoints.readyz}}</td></tr>
-        <tr><td><span class="name">/metrics</span></td><td>metrics</td><td>{{t:endpoints.metrics}}</td></tr>
-      </tbody>
-    </table></div>
-  </section>
-
-  <section id="tools">
-    <h2>{{t:tools.title}}<a class="anchor" href="#tools" aria-label="{{t:ui.permalink}}">#</a></h2>
-    <p>{{t:tools.body}}</p>
-{{tools}}
-  </section>
-
-  <footer>hyperbilling-mcp v{{version}}<br>{{t:footer.notice}}</footer>
-</main>
-</div>
-</body>
-</html>

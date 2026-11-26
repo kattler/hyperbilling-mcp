@@ -17,13 +17,13 @@ The image release runs these jobs in order, and a failing job stops the release 
 
 | Job | Gate |
 | --- | --- |
-| test | Formatting, clippy, tests, 70% line coverage, and `cargo audit` |
+| test | Documentation page type check and build, formatting, clippy, tests, 70% line coverage, and `cargo audit` |
 | build | Static musl binaries for both architectures with cargo-zigbuild |
 | scan | Trivy on the lockfile and on both built images. Any CRITICAL or HIGH vulnerability fails the release, with or without a fix available |
 | image | One multi-platform image tagged with the version and `latest` |
 | chart | The chart, pushed after the image it references |
 
-The image is `scratch` with a stripped static binary, so an image scanner sees no package inside it. The lockfile scan is the one that covers the Rust dependencies.
+The image is `scratch` with a stripped static binary, so an image scanner sees no package inside it. The lockfile scan is the one that covers the Rust dependencies in `Cargo.lock` and the documentation page dependencies in `web/package-lock.json`.
 
 Third-party actions are pinned to a commit SHA. The scan job holds no registry write permission.
 
@@ -33,4 +33,4 @@ To rebuild a published version, run the Release workflow by hand with `force` en
 
 ## Toolchain pins
 
-The build pins Rust 1.100.0, zig 0.15.2, and cargo-zigbuild 0.23.0. Statically linked musl binaries built with zig 0.16.0 grew their memory without bound at runtime, so bump zig only after watching the memory of a rebuilt image stay flat.
+The build pins Rust 1.100.0, zig 0.15.2, cargo-zigbuild 0.23.0, and Node 24.18.0 in `web/.node-version`. Statically linked musl binaries built with zig 0.16.0 grew their memory without bound at runtime, so bump zig only after watching the memory of a rebuilt image stay flat.

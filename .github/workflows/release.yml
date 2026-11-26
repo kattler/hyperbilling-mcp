@@ -65,6 +65,17 @@ jobs:
           toolchain: 1.100.0
           components: rustfmt, clippy, llvm-tools-preview
 
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: web/.node-version
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Build the documentation page
+        working-directory: web
+        run: npm ci && npm run build
+
       - name: Check formatting
         run: cargo fmt --check
 
@@ -120,6 +131,17 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
           key: ${{ runner.os }}-cargo-release-${{ matrix.arch }}-${{ hashFiles('Cargo.lock') }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: web/.node-version
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Build the documentation page
+        working-directory: web
+        run: npm ci && npm run build
 
       - name: Build static binary
         run: |

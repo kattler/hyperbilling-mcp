@@ -35,4 +35,12 @@ fn main() {
         }
     }
     println!("cargo:rerun-if-changed=build.rs");
+
+    for asset in ["web/dist/app.js", "web/dist/app.css"] {
+        println!("cargo:rerun-if-changed={asset}");
+        assert!(
+            Path::new(asset).exists(),
+            "{asset} is missing, build the documentation page with `make web`"
+        );
+    }
 }

@@ -13,7 +13,9 @@ First release.
 - Seven fixed recent reports on `hyperbilling_get_recent_billing`.
 - Caller credentials from the `X-Client-Id` and `X-Client-Secret` request headers, with an optional fallback credential from the environment.
 - Array and object arguments accepted as strings, for MCP clients that send every argument as a string.
-- Documentation page at `/docs` in English and Korean, rendered from the registered tool definitions. The theme and the language follow the browser, and the layout is responsive.
+- Documentation page at `/docs` in English and Korean, a React application embedded in the binary and rendered from the registered tool definitions. The theme and the language follow the browser, and the layout is responsive.
+- Setup prompt on the documentation page. It carries the address the page was opened at, so pasting it into an MCP client registers this server.
+- Copy button on every code block of the documentation page.
 - Animated architecture diagrams on the documentation page for a direct MCP client and for a LiteLLM proxy in front.
 - Prometheus metrics on a separate port for tool calls, tool latency, and API requests.
 - `/healthz` and `/readyz` probes, and graceful shutdown on SIGTERM.

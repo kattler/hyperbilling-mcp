@@ -284,13 +284,30 @@ mod tests {
         assert!(docs.headers().contains_key("content-security-policy"));
         assert_eq!(docs.headers()["content-language"], "en");
         let docs = docs.text().await.unwrap();
-        assert!(docs.contains(r#"id="hyperbilling_get_recent_billing""#));
+        assert!(docs.contains(r#""name":"hyperbilling_get_recent_billing""#));
         assert!(docs.contains("latest-by-region"));
         assert!(!docs.contains("{{"));
 
         let korean = reqwest::get(format!("{base}/docs?lang=ko")).await.unwrap();
         assert_eq!(korean.headers()["content-language"], "ko");
-        assert!(korean.text().await.unwrap().contains("사용 제한"));
+        assert!(korean.text().await.unwrap().contains(r#""locale":"ko""#));
+        for (path, content_type, text) in [
+            (
+                "/docs/app.js",
+                "text/javascript; charset=utf-8",
+                "사용 제한",
+            ),
+            (
+                "/docs/app.css",
+                "text/css; charset=utf-8",
+                "prefers-color-scheme",
+            ),
+        ] {
+            let asset = reqwest::get(format!("{base}{path}")).await.unwrap();
+            assert_eq!(asset.status(), 200);
+            assert_eq!(asset.headers()["content-type"], content_type);
+            assert!(asset.text().await.unwrap().contains(text));
+        }
         let negotiated = reqwest::Client::new()
             .get(format!("{base}/docs"))
             .header("accept-language", "ko-KR,ko;q=0.9,en;q=0.8")

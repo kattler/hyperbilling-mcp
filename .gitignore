@@ -1,4 +1,6 @@
 /target/
+/web/node_modules/
+/web/dist/
 **/*.rs.bk
 hyperbilling-mcp-linux-*
 charts/**/charts/

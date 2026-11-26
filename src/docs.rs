@@ -1,8 +1,6 @@
-//! The embedded documentation page, rendered once per locale at startup from
-//! the registered tool definitions and the message catalogs in `docs/locales`.
+//! The embedded documentation page: a React bundle built from `web/`, served
+//! with the registered tool definitions injected as JSON.
 
-use std::collections::BTreeMap;
-use std::fmt::Write as _;
 use std::sync::Arc;
 
 use axum::Router;
@@ -10,16 +8,15 @@ use axum::extract::{RawQuery, State};
 use axum::http::{HeaderMap, header};
 use axum::response::{IntoResponse, Redirect, Response};
 use axum::routing::get;
+use serde::Serialize;
 use serde_json::Value;
 
 use crate::mcp::server::ToolDoc;
 
-const PAGE: &str = include_str!("docs/page.html");
-// The vendor's wordmark, kept byte for byte as published. `logo` adapts it.
-const LOGO: &str = include_str!("docs/hyperbilling-logo.svg");
-// The page has one inline stylesheet and loads nothing else.
-const CONTENT_SECURITY_POLICY: &str =
-    "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'";
+const SHELL: &str = include_str!("docs/shell.html");
+const SCRIPT: &str = include_str!("../web/dist/app.js");
+const STYLESHEET: &str = include_str!("../web/dist/app.css");
+const CONTENT_SECURITY_POLICY: &str = "default-src 'none'; script-src 'self'; style-src 'self'; base-uri 'none'; frame-ancestors 'none'";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Locale {
@@ -34,21 +31,6 @@ impl Locale {
         match self {
             Self::En => "en",
             Self::Ko => "ko",
-        }
-    }
-
-    /// Shown in the switcher in its own language, whatever the page locale.
-    const fn label(self) -> &'static str {
-        match self {
-            Self::En => "English",
-            Self::Ko => "한국어",
-        }
-    }
-
-    const fn catalog(self) -> &'static str {
-        match self {
-            Self::En => include_str!("docs/locales/en.json"),
-            Self::Ko => include_str!("docs/locales/ko.json"),
         }
     }
 
@@ -77,25 +59,6 @@ impl Locale {
     }
 }
 
-/// `page.html` and UI strings by key. Values are trusted markup compiled into
-/// the binary. `tool.*` and `arg.*` entries translate text that otherwise
-/// comes from the tool definitions, which stay English for the agent.
-struct Catalog(BTreeMap<String, String>);
-
-impl Catalog {
-    fn load(locale: Locale) -> Self {
-        Self(serde_json::from_str(locale.catalog()).expect("embedded locale catalog is valid JSON"))
-    }
-
-    fn text<'a>(&'a self, key: &'a str) -> &'a str {
-        self.0.get(key).map_or(key, String::as_str)
-    }
-
-    fn translated<'a>(&'a self, key: &str, source: &'a str) -> &'a str {
-        self.0.get(key).map_or(source, String::as_str)
-    }
-}
-
 pub struct Pages {
     en: String,
     ko: String,
@@ -121,6 +84,14 @@ pub fn router(pages: Arc<Pages>) -> Router {
     Router::new()
         .route("/", get(|| async { Redirect::temporary("/docs") }))
         .route("/docs", get(serve))
+        .route(
+            "/docs/app.js",
+            get(|| async { asset("text/javascript; charset=utf-8", SCRIPT) }),
+        )
+        .route(
+            "/docs/app.css",
+            get(|| async { asset("text/css; charset=utf-8", STYLESHEET) }),
+        )
         .with_state(pages)
 }
 
@@ -147,148 +118,68 @@ async fn serve(
         .into_response()
 }
 
-/// The published file is white on a fixed canvas with wide margins. Inline it
-/// cropped to the drawing and in the text color, so it reads in both themes.
-fn logo() -> String {
-    LOGO.trim()
-        .replace(
-            r#"width="580" height="150" viewBox="0 0 580 150""#,
-            r#"class="logo" viewBox="62 33 457 84" role="img" aria-label="HyperBilling""#,
-        )
-        .replace(r#"fill="white""#, r#"fill="currentColor""#)
+fn asset(content_type: &'static str, body: &'static str) -> Response {
+    (
+        [
+            (header::CONTENT_TYPE, content_type),
+            (header::X_CONTENT_TYPE_OPTIONS, "nosniff"),
+            (header::CACHE_CONTROL, "no-cache"),
+        ],
+        body,
+    )
+        .into_response()
 }
 
-fn render(locale: Locale, version: &str, tools: &[ToolDoc]) -> String {
-    let catalog = Catalog::load(locale);
-    let mut nav = String::new();
-    let mut body = String::new();
-    for tool in tools {
-        let name = escape(&tool.name);
-        // Every tool shares the product prefix, which only eats sidebar width.
-        let label = escape(
-            tool.name
-                .strip_prefix("hyperbilling_")
-                .unwrap_or(&tool.name),
-        );
-        let _ = writeln!(nav, r##"  <a class="mono" href="#{name}">{label}</a>"##);
-        render_tool(&mut body, &catalog, tool);
-    }
-    let mut page = PAGE
-        .replace("{{lang}}", locale.code())
-        .replace("{{version}}", &escape(version))
-        .replace("{{switcher}}", &switcher(locale, &catalog))
-        .replace("{{logo}}", &logo())
-        .replace("{{nav}}", nav.trim_end())
-        .replace("{{tools}}", body.trim_end());
-    for (key, value) in &catalog.0 {
-        page = page.replace(&format!("{{{{t:{key}}}}}"), value);
-    }
-    // Catalog text may itself carry this placeholder, so it resolves last.
-    page.replace("{{tool_count}}", &tools.len().to_string())
+#[derive(Serialize)]
+struct Payload<'a> {
+    locale: &'static str,
+    version: &'a str,
+    tools: Vec<Tool<'a>>,
 }
 
-/// A `details` element, so the menu opens without script.
-fn switcher(current: Locale, catalog: &Catalog) -> String {
-    let mut out = format!(
-        r#"<details class="lang"><summary aria-label="{}" lang="{}">{}</summary><div class="menu">"#,
-        escape(catalog.text("ui.language")),
-        current.code(),
-        current.label(),
-    );
-    for locale in Locale::ALL {
-        let code = locale.code();
-        let state = if locale == current {
-            r#" class="on" aria-current="true""#
-        } else {
-            ""
-        };
-        let _ = write!(
-            out,
-            r#"<a href="?lang={code}" hreflang="{code}" lang="{code}"{state}>{}</a>"#,
-            locale.label()
-        );
-    }
-    out.push_str("</div></details>");
-    out
+#[derive(Serialize)]
+struct Tool<'a> {
+    name: &'a str,
+    description: &'a str,
+    method: &'a str,
+    path: &'a str,
+    arguments: Vec<Argument>,
 }
 
-fn render_tool(out: &mut String, catalog: &Catalog, tool: &ToolDoc) {
-    let name = escape(&tool.name);
-    let (method, path) = tool.upstream.split_once(' ').unwrap_or(("", tool.upstream));
-    let description = catalog.translated(
-        &format!("tool.{}.description", tool.name),
-        &tool.description,
-    );
-    let _ = write!(
-        out,
-        r##"    <article class="tool" id="{name}">
-      <header><h3>{name}<a class="anchor" href="#{name}" aria-label="{permalink}">#</a></h3></header>
-      <div class="upstream"><span class="method {class}">{method}</span><code>{path}</code></div>
-      <p>{description}</p>
-"##,
-        permalink = escape(catalog.text("ui.permalink")),
-        class = method.to_ascii_lowercase(),
-        method = escape(method),
-        path = escape(path),
-        description = escape(description),
-    );
-
-    let arguments = arguments(&tool.schema);
-    if arguments.is_empty() {
-        let _ = writeln!(
-            out,
-            r#"      <p class="none">{}</p>"#,
-            escape(catalog.text("ui.no_arguments"))
-        );
-    } else {
-        let _ = writeln!(
-            out,
-            "      <div class=\"table\"><table>\n        <thead><tr><th>{}</th><th></th><th>{}</th></tr></thead>\n        <tbody>",
-            escape(catalog.text("ui.argument")),
-            escape(catalog.text("ui.description")),
-        );
-        for argument in arguments {
-            render_argument(out, catalog, &tool.name, &argument);
-        }
-        out.push_str("        </tbody>\n      </table></div>\n");
-    }
-    out.push_str("    </article>\n");
-}
-
-fn render_argument(out: &mut String, catalog: &Catalog, tool: &str, argument: &Argument) {
-    let (class, key) = if argument.required {
-        ("req", "ui.required")
-    } else {
-        ("opt", "ui.optional")
-    };
-    let description = catalog.translated(
-        &format!("arg.{tool}.{}", argument.name),
-        &argument.description,
-    );
-    let _ = write!(
-        out,
-        r#"          <tr><td><span class="name">{name}</span><br><span class="type">{kind}</span></td><td><span class="{class}">{presence}</span></td><td>{description}"#,
-        name = escape(&argument.name),
-        kind = escape(&argument.kind),
-        presence = escape(catalog.text(key)),
-        description = escape(description),
-    );
-    if !argument.values.is_empty() {
-        out.push_str(r#"<div class="values">"#);
-        for value in &argument.values {
-            let _ = write!(out, "<code>{}</code>", escape(value));
-        }
-        out.push_str("</div>");
-    }
-    out.push_str("</td></tr>\n");
-}
-
+#[derive(Serialize)]
 struct Argument {
     name: String,
     kind: String,
     description: String,
     required: bool,
     values: Vec<String>,
+}
+
+fn render(locale: Locale, version: &str, tools: &[ToolDoc]) -> String {
+    let payload = Payload {
+        locale: locale.code(),
+        version,
+        tools: tools
+            .iter()
+            .map(|tool| {
+                let (method, path) = tool.upstream.split_once(' ').unwrap_or(("", tool.upstream));
+                Tool {
+                    name: &tool.name,
+                    description: &tool.description,
+                    method,
+                    path,
+                    arguments: arguments(&tool.schema),
+                }
+            })
+            .collect(),
+    };
+    // An unescaped `</script>` in a description would end the data block early.
+    let data = serde_json::to_string(&payload)
+        .expect("docs payload serializes")
+        .replace('<', "\\u003c");
+    SHELL
+        .replace("{{lang}}", locale.code())
+        .replace("{{data}}", &data)
 }
 
 /// Required arguments first, each group in schema order.
@@ -345,24 +236,10 @@ fn kind(property: &Value) -> String {
     name.to_string()
 }
 
-fn escape(text: &str) -> String {
-    let mut out = String::with_capacity(text.len());
-    for c in text.chars() {
-        match c {
-            '&' => out.push_str("&amp;"),
-            '<' => out.push_str("&lt;"),
-            '>' => out.push_str("&gt;"),
-            '"' => out.push_str("&quot;"),
-            '\'' => out.push_str("&#39;"),
-            _ => out.push(c),
-        }
-    }
-    out
-}
-
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeSet;
+    use std::collections::{BTreeMap, BTreeSet};
+    use std::path::Path;
 
     use serde_json::json;
 
@@ -371,10 +248,20 @@ mod tests {
     use crate::mcp::Server;
     use crate::observability::Metrics;
 
+    type Catalog = BTreeMap<String, String>;
+
+    fn catalog(locale: Locale) -> Catalog {
+        let source = match locale {
+            Locale::En => include_str!("../web/src/locales/en.json"),
+            Locale::Ko => include_str!("../web/src/locales/ko.json"),
+        };
+        serde_json::from_str(source).expect("locale catalog is valid JSON")
+    }
+
     fn tool(name: &str, upstream: &'static str, schema: Value) -> ToolDoc {
         ToolDoc {
             name: name.to_string(),
-            description: "Lists <things> & more".to_string(),
+            description: "Lists <things> & more</script>".to_string(),
             upstream,
             schema: Arc::new(serde_json::from_value(schema).unwrap()),
         }
@@ -385,26 +272,38 @@ mod tests {
         Server::new(Arc::new(client("http://127.0.0.1:1", None)), metrics).tool_docs()
     }
 
-    fn template_keys() -> BTreeSet<String> {
-        PAGE.split("{{t:")
-            .skip(1)
-            .map(|rest| rest.split("}}").next().unwrap().to_string())
-            .collect()
+    /// The JSON the page reads back out of its data block.
+    fn payload(page: &str) -> Value {
+        let (_, rest) = page
+            .split_once(r#"<script id="docs-data" type="application/json">"#)
+            .expect("page carries a data block");
+        let (data, _) = rest.split_once("</script>").unwrap();
+        serde_json::from_str(data).expect("data block is valid JSON")
     }
 
     /// Keys a tool definition can supply are optional in a catalog. Every
     /// other key is page or UI text and must exist in each locale.
     fn page_keys(catalog: &Catalog) -> BTreeSet<String> {
         catalog
-            .0
             .keys()
             .filter(|key| !key.starts_with("tool.") && !key.starts_with("arg."))
             .cloned()
             .collect()
     }
 
+    fn web_sources() -> String {
+        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("web/src");
+        std::fs::read_dir(dir)
+            .unwrap()
+            .filter_map(Result::ok)
+            .map(|entry| entry.path())
+            .filter(|path| path.extension().is_some_and(|ext| ext == "tsx"))
+            .map(|path| std::fs::read_to_string(path).unwrap())
+            .collect()
+    }
+
     #[test]
-    fn renders_tools_arguments_and_escapes_text() {
+    fn injects_tools_and_arguments_as_escaped_json() {
         let page = render(
             Locale::En,
             "1.2.3",
@@ -432,62 +331,60 @@ mod tests {
 
         assert!(!page.contains("{{"));
         assert!(page.contains(r#"<html lang="en">"#));
-        assert!(page.contains(r#"<meta name="color-scheme" content="dark light">"#));
-        assert!(page.contains("@media (prefers-color-scheme: light)"));
-        assert!(page.contains("v1.2.3"));
-        assert!(page.contains(
-            r##"<a class="mono" href="#hyperbilling_search_billing">search_billing</a>"##
-        ));
-        assert!(page.contains(r#"<article class="tool" id="hyperbilling_list_linked_accounts">"#));
-        assert!(
-            page.contains(
-                r#"<span class="method post">POST</span><code>/v1/search/billing</code>"#
-            )
+        assert!(page.contains(r#"<link rel="stylesheet" href="docs/app.css">"#));
+        assert!(page.contains(r#"<script type="module" src="docs/app.js"></script>"#));
+        assert_eq!(page.matches("</script>").count(), 2);
+
+        let data = payload(&page);
+        assert_eq!(data["locale"], "en");
+        assert_eq!(data["version"], "1.2.3");
+        let search = &data["tools"][0];
+        assert_eq!(search["name"], "hyperbilling_search_billing");
+        assert_eq!(search["description"], "Lists <things> & more</script>");
+        assert_eq!(search["method"], "POST");
+        assert_eq!(search["path"], "/v1/search/billing");
+        let names: Vec<_> = search["arguments"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|argument| argument["name"].as_str().unwrap())
+            .collect();
+        assert_eq!(names, ["view", "accounts", "filter"]);
+        assert_eq!(search["arguments"][0]["required"], true);
+        assert_eq!(
+            search["arguments"][0]["values"],
+            json!(["latest", "last-3-months"])
         );
-        assert!(page.contains(r#"<span class="method get">GET</span>"#));
-        assert!(page.contains("Lists &lt;things&gt; &amp; more"));
-        assert!(page.contains("a &quot;fixed&quot; report"));
-        assert!(page.contains(r#"<span class="type">string[]</span>"#));
-        assert!(page.contains(r#"<span class="type">object</span>"#));
-        assert!(page.contains("<code>last-3-months</code>"));
-        assert!(page.contains("No arguments."));
-        assert!(page.contains(
-            "<h3>hyperbilling_search_billing<a class=\"anchor\" href=\"#hyperbilling_search_billing\" aria-label=\"Link to this section\">#</a></h3>"
-        ));
-        assert_eq!(page.matches(r#"<a class="anchor""#).count(), 10);
-        assert!(page.contains("2 tools, nothing cached"));
-        assert!(page.contains(r#"<div class="flow" role="img" aria-label="Architecture:"#));
-        assert!(page.contains(r#"<details class="arch" id="arch-direct">"#));
-        assert!(page.contains(r#"<details class="arch" id="arch-litellm">"#));
-        let required = page.find(r#"<span class="name">view</span>"#).unwrap();
-        let optional = page.find(r#"<span class="name">accounts</span>"#).unwrap();
-        assert!(required < optional, "required arguments come first");
+        assert_eq!(search["arguments"][0]["description"], "a \"fixed\" report");
+        assert_eq!(search["arguments"][1]["kind"], "string[]");
+        assert_eq!(search["arguments"][2]["kind"], "object");
+        assert_eq!(data["tools"][1]["method"], "GET");
+        assert_eq!(data["tools"][1]["arguments"], json!([]));
     }
 
     #[test]
-    fn every_locale_covers_every_template_and_ui_key() {
-        let template = template_keys();
-        assert!(!template.is_empty());
-        let english = page_keys(&Catalog::load(Locale::En));
-        for locale in Locale::ALL {
-            let keys = page_keys(&Catalog::load(locale));
-            assert_eq!(keys, english, "{locale:?} page keys differ from English");
-            let missing: Vec<_> = template.difference(&keys).collect();
-            assert!(
-                missing.is_empty(),
-                "{locale:?} lacks template keys {missing:?}"
-            );
-            let unused: Vec<_> = keys
-                .difference(&template)
-                .filter(|key| !key.starts_with("ui."))
-                .collect();
-            assert!(unused.is_empty(), "{locale:?} has unused keys {unused:?}");
-        }
+    fn every_locale_covers_every_page_key_and_the_page_uses_each() {
+        let english = page_keys(&catalog(Locale::En));
+        assert!(!english.is_empty());
+        assert_eq!(
+            page_keys(&catalog(Locale::Ko)),
+            english,
+            "Korean page keys differ from English"
+        );
+        let sources = web_sources();
+        let unused: Vec<_> = english
+            .iter()
+            .filter(|key| !sources.contains(&format!("\"{key}\"")))
+            .collect();
+        assert!(
+            unused.is_empty(),
+            "catalog keys the page never reads: {unused:?}"
+        );
     }
 
     #[test]
     fn korean_translates_every_tool_and_argument() {
-        let catalog = Catalog::load(Locale::Ko);
+        let korean = catalog(Locale::Ko);
         let tools = real_tools();
         let mut expected = BTreeSet::new();
         for tool in &tools {
@@ -496,41 +393,58 @@ mod tests {
                 expected.insert(format!("arg.{}.{}", tool.name, argument.name));
             }
         }
-        let translated: BTreeSet<String> = catalog
-            .0
+        let translated: BTreeSet<String> = korean
             .keys()
             .filter(|key| key.starts_with("tool.") || key.starts_with("arg."))
             .cloned()
             .collect();
         assert_eq!(translated, expected, "ko.json must match the tool surface");
+        assert!(
+            catalog(Locale::En)
+                .keys()
+                .all(|key| !key.starts_with("tool.") && !key.starts_with("arg.")),
+            "English tool text comes from the tool definitions"
+        );
+    }
 
+    #[test]
+    fn page_carries_the_real_tool_definitions() {
+        let tools = real_tools();
         let page = render(Locale::Ko, "1.2.3", &tools);
-        assert!(!page.contains("{{"));
         assert!(page.contains(r#"<html lang="ko">"#));
-        assert!(page.contains("사용 제한"));
-        assert!(page.contains(r#"<span class="req">필수</span>"#));
-        for tool in &tools {
-            assert!(
-                !page.contains(&escape(&tool.description)),
-                "{} is untranslated",
-                tool.name
-            );
+        let data = payload(&page);
+        assert_eq!(data["locale"], "ko");
+        let rendered = data["tools"].as_array().unwrap();
+        assert_eq!(rendered.len(), tools.len());
+        for (rendered, tool) in rendered.iter().zip(&tools) {
+            assert_eq!(rendered["name"], tool.name);
+            assert_eq!(rendered["description"], tool.description);
         }
     }
 
     #[test]
-    fn english_page_uses_the_tool_definitions() {
-        let tools = real_tools();
-        let page = render(Locale::En, "1.2.3", &tools);
-        assert!(!page.contains("{{"));
-        for tool in &tools {
-            assert!(page.contains(&escape(&tool.description)));
+    fn setup_prompt_keeps_the_key_out_of_the_chat() {
+        for locale in Locale::ALL {
+            let prompt = &catalog(locale)["connect.prompt"];
+            assert!(prompt.contains("- URL: {{origin}}/mcp"));
+            assert!(prompt.contains("X-Client-Secret: ${HYPERBILLING_API_KEY}"));
+            assert!(prompt.contains("hyperbilling_list_linked_accounts"));
         }
-        assert!(page.contains(r#"<a href="?lang=en" hreflang="en" lang="en" class="on" aria-current="true">English</a>"#));
-        assert!(page.contains(r#"<a href="?lang=ko" hreflang="ko" lang="ko">한국어</a>"#));
-        assert!(page.contains(
-            r#"<details class="lang"><summary aria-label="Language" lang="en">English</summary>"#
-        ));
+    }
+
+    #[test]
+    fn serves_the_bundle_under_a_policy_without_inline_code() {
+        let script = asset("text/javascript; charset=utf-8", SCRIPT);
+        assert_eq!(
+            script.headers()[header::CONTENT_TYPE],
+            "text/javascript; charset=utf-8"
+        );
+        assert_eq!(script.headers()[header::X_CONTENT_TYPE_OPTIONS], "nosniff");
+        assert!(SCRIPT.contains("hyperbilling_list_linked_accounts"));
+        assert!(STYLESHEET.contains("prefers-color-scheme"));
+        assert!(CONTENT_SECURITY_POLICY.contains("script-src 'self'"));
+        assert!(CONTENT_SECURITY_POLICY.contains("style-src 'self'"));
+        assert!(!CONTENT_SECURITY_POLICY.contains("unsafe-inline"));
     }
 
     #[test]
@@ -545,21 +459,6 @@ mod tests {
         );
         assert_eq!(pick(None, Some("fr-FR, en-GB;q=0.8, ko;q=0.5")), Locale::En);
         assert_eq!(pick(None, Some("ja, zh_CN")), Locale::En);
-        assert_eq!(Catalog::load(Locale::En).text("no.such.key"), "no.such.key");
-    }
-
-    #[test]
-    fn logo_is_cropped_and_follows_the_text_color() {
-        let logo = logo();
-        assert!(logo.starts_with(
-            r#"<svg class="logo" viewBox="62 33 457 84" role="img" aria-label="HyperBilling""#
-        ));
-        assert!(logo.contains(r#"fill="currentColor""#));
-        assert!(!logo.contains(r#"fill="white""#));
-        assert!(!logo.contains("<script"));
-        let page = render(Locale::En, "1.2.3", &[]);
-        assert_eq!(page.matches(r#"<svg class="logo""#).count(), 3);
-        assert!(page.contains("not affiliated with or endorsed by MegazoneCloud"));
     }
 
     #[test]
@@ -567,6 +466,5 @@ mod tests {
         assert_eq!(kind(&json!({})), "any");
         assert_eq!(kind(&json!({"type": ["null"]})), "any");
         assert_eq!(kind(&json!({"type": "array"})), "any[]");
-        assert_eq!(escape("it's"), "it&#39;s");
     }
 }
