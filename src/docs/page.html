@@ -1,0 +1,524 @@
+<!doctype html>
+<html lang="{{lang}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>{{t:title}}</title>
+<style>
+:root {
+  --bg: #000;
+  --surface: #0a0a0a;
+  --border: #242424;
+  --border-strong: #333;
+  --fg: #ededed;
+  --muted: #a1a1a1;
+  --faint: #707070;
+  --hover: #1a1a1a;
+  --active: #1f1f1f;
+  --bar: rgba(0, 0, 0, .8);
+  --shadow: rgba(0, 0, 0, .6);
+  --blue: #52a8ff;
+  --blue-bg: rgba(82, 168, 255, .12);
+  --green: #62c073;
+  --green-bg: rgba(98, 192, 115, .12);
+  color-scheme: dark;
+  --sans: "Geist", "Inter", "Pretendard", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", "Segoe UI", system-ui, sans-serif;
+  --mono: "Geist Mono", ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #fff;
+    --surface: #fafafa;
+    --border: #eaeaea;
+    --border-strong: #d4d4d4;
+    --fg: #171717;
+    --muted: #666;
+    --faint: #8f8f8f;
+    --hover: #f2f2f2;
+    --active: #ebebeb;
+    --bar: rgba(255, 255, 255, .8);
+    --shadow: rgba(0, 0, 0, .12);
+    --blue: #0068d6;
+    --blue-bg: rgba(0, 104, 214, .1);
+    --green: #107d32;
+    --green-bg: rgba(16, 125, 50, .1);
+    color-scheme: light;
+  }
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 88px; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 14px/1.6 var(--sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+a { color: inherit; text-decoration: none; }
+code, pre { font-family: var(--mono); font-size: 13px; }
+.top {
+  position: sticky; top: 0; z-index: 2;
+  background: var(--bar);
+  backdrop-filter: saturate(180%) blur(12px);
+  border-bottom: 1px solid var(--border);
+}
+.bar {
+  display: flex; align-items: center; gap: 12px;
+  max-width: 1120px; height: 64px; margin: 0 auto; padding: 0 24px;
+}
+.bar .end { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.lang { position: relative; }
+.lang summary {
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 32px; padding: 0 12px;
+  border: 1px solid var(--border-strong); border-radius: 8px;
+  color: var(--fg); font-size: 13px; white-space: nowrap;
+  list-style: none; cursor: pointer; user-select: none;
+  transition: background .15s;
+}
+.lang summary::-webkit-details-marker { display: none; }
+.lang summary::after {
+  content: ""; width: 6px; height: 6px; margin-top: -3px;
+  border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted);
+  transform: rotate(45deg); transition: transform .15s, margin .15s;
+}
+.lang[open] summary::after { margin-top: 3px; transform: rotate(225deg); }
+.lang summary:hover, .lang summary:focus-visible, .lang[open] summary { background: var(--hover); outline: none; }
+.lang .menu {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 3;
+  min-width: 152px; padding: 4px;
+  border: 1px solid var(--border-strong); border-radius: 10px;
+  background: var(--bg); box-shadow: 0 8px 30px var(--shadow);
+}
+.lang .menu a {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  min-height: 36px; padding: 0 10px; border-radius: 6px;
+  color: var(--muted); font-size: 13px; white-space: nowrap;
+  transition: color .15s, background .15s;
+}
+.lang .menu a:hover, .lang .menu a:focus-visible { color: var(--fg); background: var(--hover); outline: none; }
+.lang .menu a.on { color: var(--fg); }
+.lang .menu a.on::after {
+  content: ""; width: 5px; height: 9px; margin-top: -3px;
+  border-right: 1.5px solid var(--fg); border-bottom: 1.5px solid var(--fg);
+  transform: rotate(45deg);
+}
+p, td, li, .upstream code { overflow-wrap: anywhere; }
+:lang(ko) body { word-break: keep-all; }
+.logo { display: block; flex: none; width: auto; height: 17px; color: var(--fg); }
+.node .logo { height: 15px; margin: 3px 0 1px; }
+.node .api { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 7px; }
+.brand { font-weight: 600; letter-spacing: -.01em; }
+.sep { color: var(--border-strong); }
+.top .muted { color: var(--muted); }
+.pill {
+  display: inline-flex; align-items: center;
+  height: 22px; padding: 0 8px;
+  border: 1px solid var(--border-strong); border-radius: 999px;
+  color: var(--muted); font: 12px/1 var(--mono);
+  white-space: nowrap;
+}
+.shell {
+  display: grid; grid-template-columns: 240px minmax(0, 1fr);
+  max-width: 1120px; margin: 0 auto;
+}
+nav {
+  position: sticky; top: 64px; align-self: start;
+  height: calc(100vh - 64px); overflow-y: auto;
+  padding: 32px 16px 32px 24px;
+  border-right: 1px solid var(--border);
+}
+nav h2 {
+  margin: 24px 0 8px; padding: 0 8px;
+  color: var(--faint); font-size: 12px; font-weight: 500;
+  letter-spacing: .04em; text-transform: uppercase;
+}
+nav h2:first-child { margin-top: 0; }
+nav a {
+  display: block; padding: 6px 8px; border-radius: 6px;
+  color: var(--muted); overflow-wrap: anywhere;
+  transition: color .15s, background .15s;
+}
+nav a:hover, nav a:focus-visible { color: var(--fg); background: var(--hover); outline: none; }
+nav a.mono { font: 12.5px/1.5 var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+main { padding: 56px 48px 120px; min-width: 0; }
+.hero h1 {
+  margin: 0 0 12px;
+  font-size: clamp(28px, 7vw, 40px); line-height: 1.1; font-weight: 600; letter-spacing: -.04em;
+}
+.hero p { margin: 0; max-width: 620px; color: var(--muted); font-size: 16px; }
+.arch { margin-top: 12px; border: 1px solid var(--border); border-radius: 12px; transition: border-color .15s; }
+.arch:hover, .arch[open] { border-color: var(--border-strong); }
+.arch summary {
+  display: flex; align-items: center; gap: 16px;
+  padding: 16px 20px; border-radius: 12px;
+  list-style: none; cursor: pointer; user-select: none;
+}
+.arch summary::-webkit-details-marker { display: none; }
+.arch summary:focus-visible { outline: 1px solid var(--fg); outline-offset: -1px; }
+.arch summary::after {
+  content: ""; flex: none; width: 7px; height: 7px; margin: -3px 4px 0 auto;
+  border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted);
+  transform: rotate(45deg); transition: transform .15s, margin .15s;
+}
+.arch[open] summary::after { margin-top: 4px; transform: rotate(225deg); }
+.arch .head { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.arch .head strong { font-size: 15px; font-weight: 600; letter-spacing: -.01em; }
+.arch .head span { color: var(--muted); font-size: 13px; }
+.arch .body { padding: 24px 20px 8px; border-top: 1px solid var(--border); }
+.arch .body > :last-child { margin-bottom: 16px; }
+.flow { display: flex; align-items: stretch; }
+.node {
+  flex: 1 1 0; min-width: 0;
+  display: flex; flex-direction: column; justify-content: center; gap: 2px;
+  padding: 16px; border: 1px solid var(--border); border-radius: 12px;
+  background: var(--surface);
+}
+.node.self { border-color: var(--fg); background: var(--bg); }
+.node .kind { color: var(--faint); font-size: 11px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; }
+.node strong { font-size: 15px; font-weight: 600; letter-spacing: -.01em; overflow-wrap: anywhere; }
+.node .detail { color: var(--muted); font-size: 13px; }
+.link { position: relative; flex: 0 0 136px; display: flex; justify-content: center; }
+.link::before { content: ""; position: absolute; top: 50%; right: 0; left: 0; border-top: 1px dashed var(--border-strong); }
+.link .label { position: absolute; bottom: calc(50% + 10px); color: var(--faint); font-size: 11px; white-space: nowrap; }
+.link i {
+  position: absolute; top: calc(50% - 3px); left: 0;
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--fg); opacity: 0;
+  animation: flow-go 4s linear infinite;
+}
+.link i.back { background: var(--green); animation-name: flow-back; }
+.link i.d1 { animation-delay: 1s; }
+.link i.d2 { animation-delay: 2s; }
+.link i.d3 { animation-delay: 3s; }
+@keyframes flow-go {
+  0% { left: 0; opacity: 0; } 3% { opacity: 1; } 22% { opacity: 1; }
+  25% { left: calc(100% - 7px); opacity: 0; } 100% { left: calc(100% - 7px); opacity: 0; }
+}
+@keyframes flow-back {
+  0% { left: calc(100% - 7px); opacity: 0; } 3% { opacity: 1; } 22% { opacity: 1; }
+  25% { left: 0; opacity: 0; } 100% { left: 0; opacity: 0; }
+}
+@keyframes flow-down {
+  0% { top: 0; opacity: 0; } 3% { opacity: 1; } 22% { opacity: 1; }
+  25% { top: calc(100% - 7px); opacity: 0; } 100% { top: calc(100% - 7px); opacity: 0; }
+}
+@keyframes flow-up {
+  0% { top: calc(100% - 7px); opacity: 0; } 3% { opacity: 1; } 22% { opacity: 1; }
+  25% { top: 0; opacity: 0; } 100% { top: 0; opacity: 0; }
+}
+.flow.four .link { flex-basis: 48px; }
+.flow.four .link .label { display: none; }
+.flow.four .link i { animation-name: flow-go6; animation-duration: 6s; }
+.flow.four .link i.back { animation-name: flow-back6; }
+.link i.d4 { animation-delay: 4s; }
+.link i.d5 { animation-delay: 5s; }
+@keyframes flow-go6 {
+  0% { left: 0; opacity: 0; } 2% { opacity: 1; } 14% { opacity: 1; }
+  16.6% { left: calc(100% - 7px); opacity: 0; } 100% { left: calc(100% - 7px); opacity: 0; }
+}
+@keyframes flow-back6 {
+  0% { left: calc(100% - 7px); opacity: 0; } 2% { opacity: 1; } 14% { opacity: 1; }
+  16.6% { left: 0; opacity: 0; } 100% { left: 0; opacity: 0; }
+}
+@keyframes flow-down6 {
+  0% { top: 0; opacity: 0; } 2% { opacity: 1; } 14% { opacity: 1; }
+  16.6% { top: calc(100% - 7px); opacity: 0; } 100% { top: calc(100% - 7px); opacity: 0; }
+}
+@keyframes flow-up6 {
+  0% { top: calc(100% - 7px); opacity: 0; } 2% { opacity: 1; } 14% { opacity: 1; }
+  16.6% { top: 0; opacity: 0; } 100% { top: 0; opacity: 0; }
+}
+.after-flow { margin-top: 24px; }
+.steps {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)); gap: 12px 20px;
+  margin: 24px 0 0; padding: 0; list-style: none; counter-reset: step;
+}
+.steps li { display: flex; gap: 10px; color: var(--muted); font-size: 13px; counter-increment: step; }
+.steps li::before {
+  content: counter(step); flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; border: 1px solid var(--border-strong); border-radius: 50%;
+  color: var(--fg); font: 11px/1 var(--mono);
+}
+section { margin-top: 72px; }
+section > h2 {
+  margin: 0 0 16px; padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 24px; font-weight: 600; letter-spacing: -.03em;
+}
+.anchor {
+  margin-left: .4em; color: var(--faint); font-weight: 400;
+  opacity: 0; transition: opacity .15s, color .15s;
+}
+h1:hover .anchor, h2:hover .anchor, h3:hover .anchor, .anchor:focus-visible { opacity: 1; outline: none; }
+.anchor:hover, .anchor:focus-visible { color: var(--fg); }
+@media (hover: none) { .anchor { opacity: 1; } }
+p { margin: 0 0 16px; color: var(--muted); max-width: 680px; }
+p code, td code, li code {
+  padding: 2px 6px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface); color: var(--fg); font-size: 12.5px;
+}
+pre {
+  margin: 0 0 16px; padding: 16px;
+  border: 1px solid var(--border); border-radius: 8px;
+  background: var(--surface); color: var(--fg);
+  overflow-x: auto; line-height: 1.7;
+}
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+.card { padding: 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+.card strong { display: block; font-size: 20px; font-weight: 600; letter-spacing: -.02em; }
+.card span { color: var(--muted); font-size: 13px; }
+.table { border: 1px solid var(--border); border-radius: 8px; overflow-x: auto; margin: 0 0 16px; }
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 10px 16px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--border); }
+tr:last-child td { border-bottom: 0; }
+th {
+  background: var(--surface); color: var(--faint);
+  font-size: 12px; font-weight: 500; letter-spacing: .02em; white-space: nowrap;
+}
+td { color: var(--muted); }
+td:first-child { white-space: nowrap; }
+td .name { color: var(--fg); font: 13px var(--mono); }
+td .type { color: var(--faint); font: 12px var(--mono); }
+.req, .opt { font-size: 12px; white-space: nowrap; }
+.req { color: var(--fg); }
+.opt { color: var(--faint); }
+.values { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.tool {
+  margin-top: 16px; padding: 24px;
+  border: 1px solid var(--border); border-radius: 12px;
+  transition: border-color .15s;
+}
+.tool:hover, .tool:target { border-color: var(--border-strong); }
+.tool header { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 12px; }
+.tool h3 { margin: 0; font: 600 15px/1.4 var(--mono); letter-spacing: -.01em; overflow-wrap: anywhere; }
+.upstream { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 16px; }
+.upstream code { color: var(--muted); }
+.method {
+  display: inline-flex; align-items: center; height: 20px; padding: 0 6px;
+  border-radius: 4px; font: 600 11px/1 var(--mono); letter-spacing: .04em;
+}
+.method.get { color: var(--blue); background: var(--blue-bg); }
+.method.post { color: var(--green); background: var(--green-bg); }
+.tool .table { margin: 16px 0 0; }
+.none { margin: 16px 0 0; color: var(--faint); font-size: 13px; }
+footer { margin-top: 96px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--faint); font-size: 13px; }
+@media (max-width: 860px) {
+  html { scroll-padding-top: 120px; }
+  .bar { height: 56px; padding: 0 16px; }
+  .top .muted, .top .sep.docs { display: none; }
+  .shell { display: block; }
+  nav {
+    top: 56px; z-index: 1;
+    display: flex; align-items: center; gap: 2px;
+    height: auto; padding: 8px 8px;
+    overflow-x: auto; overflow-y: hidden; scrollbar-width: none;
+    border-right: 0; border-bottom: 1px solid var(--border);
+    background: var(--bar); backdrop-filter: saturate(180%) blur(12px);
+  }
+  nav::-webkit-scrollbar { display: none; }
+  nav h2 { display: none; }
+  nav a { flex: none; padding: 8px 10px; white-space: nowrap; }
+  nav a.mono { overflow: visible; }
+  main { padding: 32px 16px 80px; }
+  .flow { flex-direction: column; }
+  .arch summary { padding: 14px 16px; }
+  .arch .body { padding: 20px 16px 4px; }
+  .link { flex-basis: 64px; align-items: center; justify-content: flex-start; }
+  .link::before { top: 0; right: auto; bottom: 0; left: 50%; border-top: 0; border-left: 1px dashed var(--border-strong); }
+  .link .label { position: static; margin-left: calc(50% + 14px); }
+  .link i { top: 0; left: calc(50% - 3px); animation-name: flow-down; }
+  .link i.back { animation-name: flow-up; }
+  .flow.four .link { flex-basis: 64px; }
+  .flow.four .link .label { display: inline; }
+  .flow.four .link i { animation-name: flow-down6; }
+  .flow.four .link i.back { animation-name: flow-up6; }
+  section { margin-top: 56px; }
+  .tool { padding: 16px; }
+  footer { margin-top: 64px; }
+}
+@media (max-width: 560px) {
+  .bar .pill { display: none; }
+  .brand { overflow: hidden; min-width: 0; text-overflow: ellipsis; white-space: nowrap; }
+  .bar { gap: 8px; }
+  .bar .logo { height: 14px; }
+  .hero p { font-size: 15px; }
+  section > h2 { font-size: 20px; }
+  .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  thead { display: none; }
+  table, tbody, tr, td { display: block; }
+  tr { padding: 10px 0; border-bottom: 1px solid var(--border); }
+  tr:last-child { border-bottom: 0; }
+  td, tr:last-child td { padding: 3px 14px; border-bottom: 0; }
+  td:first-child { white-space: normal; }
+  td:empty { display: none; }
+  td br { display: none; }
+  td .type { margin-left: 8px; }
+  pre { padding: 12px; font-size: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  * { transition: none !important; }
+  .link i { animation: none; }
+}
+</style>
+</head>
+<body>
+<div class="top"><div class="bar">
+  {{logo}}
+  <span class="sep" aria-hidden="true">/</span>
+  <span class="brand">hyperbilling-mcp</span>
+  <span class="sep docs" aria-hidden="true">/</span>
+  <span class="muted">{{t:docs}}</span>
+  <span class="end"><span class="pill">v{{version}}</span>{{switcher}}</span>
+</div></div>
+<div class="shell">
+<nav aria-label="{{t:nav.label}}">
+  <h2>{{t:nav.guide}}</h2>
+  <a href="#overview">{{t:nav.overview}}</a>
+  <a href="#architecture">{{t:nav.architecture}}</a>
+  <a href="#connect">{{t:nav.connect}}</a>
+  <a href="#authentication">{{t:nav.authentication}}</a>
+  <a href="#limits">{{t:nav.limits}}</a>
+  <a href="#errors">{{t:nav.errors}}</a>
+  <a href="#endpoints">{{t:nav.endpoints}}</a>
+  <h2>{{t:nav.tools}}</h2>
+{{nav}}
+</nav>
+<main>
+  <div class="hero" id="overview">
+    <h1>{{t:hero.title}}<a class="anchor" href="#overview" aria-label="{{t:ui.permalink}}">#</a></h1>
+    <p>{{t:hero.body}}</p>
+  </div>
+
+  <section id="architecture">
+    <h2>{{t:arch.title}}<a class="anchor" href="#architecture" aria-label="{{t:ui.permalink}}">#</a></h2>
+    <details class="arch" id="arch-direct">
+      <summary><span class="head"><strong>{{t:arch.direct}}</strong><span>{{t:arch.direct.hint}}</span></span></summary>
+      <div class="body">
+      <div class="flow" role="img" aria-label="{{t:flow.label}}">
+        <div class="node"><span class="kind">{{t:flow.agent.kind}}</span><strong>{{t:flow.agent}}</strong><span class="detail">{{t:flow.agent.detail}}</span></div>
+        <div class="link" aria-hidden="true"><span class="label">{{t:flow.link.mcp}}</span><i></i><i class="back d3"></i></div>
+        <div class="node self"><span class="kind">{{t:flow.server.kind}}</span><strong>hyperbilling-mcp</strong><span class="detail">{{t:flow.server.detail}}</span></div>
+        <div class="link" aria-hidden="true"><span class="label">{{t:flow.link.api}}</span><i class="d1"></i><i class="back d2"></i></div>
+        <div class="node"><span class="kind">{{t:flow.api.kind}}</span><strong class="api">{{logo}}<span>Open API</span></strong><span class="detail">{{t:flow.api.detail}}</span></div>
+      </div>
+      <ol class="steps">
+        <li>{{t:flow.step1}}</li>
+        <li>{{t:flow.step2}}</li>
+        <li>{{t:flow.step3}}</li>
+        <li>{{t:flow.step4}}</li>
+      </ol>
+      </div>
+    </details>
+    <details class="arch" id="arch-litellm">
+      <summary><span class="head"><strong>{{t:litellm.title}}</strong><span>{{t:arch.litellm.hint}}</span></span></summary>
+      <div class="body">
+      <p>{{t:litellm.body}}</p>
+      <div class="flow four" role="img" aria-label="{{t:litellm.label}}">
+        <div class="node"><span class="kind">{{t:litellm.clients.kind}}</span><strong>{{t:litellm.clients}}</strong><span class="detail">{{t:litellm.clients.detail}}</span></div>
+        <div class="link" aria-hidden="true"><span class="label">{{t:litellm.link.proxy}}</span><i></i><i class="back d5"></i></div>
+        <div class="node"><span class="kind">{{t:litellm.proxy.kind}}</span><strong>LiteLLM</strong><span class="detail">{{t:litellm.proxy.detail}}</span></div>
+        <div class="link" aria-hidden="true"><span class="label">{{t:flow.link.mcp}}</span><i class="d1"></i><i class="back d4"></i></div>
+        <div class="node self"><span class="kind">{{t:flow.server.kind}}</span><strong>hyperbilling-mcp</strong><span class="detail">{{t:flow.server.detail}}</span></div>
+        <div class="link" aria-hidden="true"><span class="label">{{t:flow.link.api}}</span><i class="d2"></i><i class="back d3"></i></div>
+        <div class="node"><span class="kind">{{t:flow.api.kind}}</span><strong class="api">{{logo}}<span>Open API</span></strong><span class="detail">{{t:flow.api.detail}}</span></div>
+      </div>
+      <p class="after-flow">{{t:litellm.config}}</p>
+<pre>mcp_servers:
+  hyperbilling:
+    url: "http://hyperbilling-mcp.example.com:8080/mcp"
+    transport: "http"
+    extra_headers: ["X-Client-Id", "X-Client-Secret"]</pre>
+      <p>{{t:litellm.endpoint}}</p>
+      <p>{{t:litellm.credentials}}</p>
+      </div>
+    </details>
+  </section>
+
+  <section id="connect">
+    <h2>{{t:connect.title}}<a class="anchor" href="#connect" aria-label="{{t:ui.permalink}}">#</a></h2>
+    <p>{{t:connect.body}}</p>
+<pre>{
+  "mcpServers": {
+    "hyperbilling": {
+      "type": "http",
+      "url": "http://hyperbilling-mcp.example.com:8080/mcp",
+      "headers": {
+        "X-Client-Id": "user@example.com",
+        "X-Client-Secret": "${HYPERBILLING_API_KEY}"
+      }
+    }
+  }
+}</pre>
+    <p>{{t:connect.start}}</p>
+  </section>
+
+  <section id="authentication">
+    <h2>{{t:auth.title}}<a class="anchor" href="#authentication" aria-label="{{t:ui.permalink}}">#</a></h2>
+    <p>{{t:auth.body}}</p>
+    <div class="table"><table>
+      <thead><tr><th>{{t:auth.header}}</th><th>{{t:auth.value}}</th></tr></thead>
+      <tbody>
+        <tr><td><span class="name">X-Client-Id</span></td><td>{{t:auth.client_id}}</td></tr>
+        <tr><td><span class="name">X-Client-Secret</span></td><td>{{t:auth.client_secret}}</td></tr>
+      </tbody>
+    </table></div>
+    <p>{{t:auth.fallback}}</p>
+  </section>
+
+  <section id="limits">
+    <h2>{{t:limits.title}}<a class="anchor" href="#limits" aria-label="{{t:ui.permalink}}">#</a></h2>
+    <p>{{t:limits.body}}</p>
+    <div class="grid">
+      <div class="card"><strong>500</strong><span>{{t:limits.requests}}</span></div>
+      <div class="card"><strong>1000</strong><span>{{t:limits.rows}}</span></div>
+      <div class="card"><strong>5</strong><span>{{t:limits.dimensions}}</span></div>
+      <div class="card"><strong>{{t:limits.daily.value}}</strong><span>{{t:limits.daily}}</span></div>
+      <div class="card"><strong>{{t:limits.monthly.value}}</strong><span>{{t:limits.monthly}}</span></div>
+    </div>
+  </section>
+
+  <section id="errors">
+    <h2>{{t:errors.title}}<a class="anchor" href="#errors" aria-label="{{t:ui.permalink}}">#</a></h2>
+    <p>{{t:errors.body}}</p>
+    <div class="table"><table>
+      <thead><tr><th>{{t:errors.status}}</th><th>{{t:errors.meaning}}</th></tr></thead>
+      <tbody>
+        <tr><td><span class="name">204</span></td><td>{{t:errors.204}}</td></tr>
+        <tr><td><span class="name">400</span></td><td>{{t:errors.400}}</td></tr>
+        <tr><td><span class="name">401</span></td><td>{{t:errors.401}}</td></tr>
+        <tr><td><span class="name">403</span></td><td>{{t:errors.403}}</td></tr>
+        <tr><td><span class="name">429</span></td><td>{{t:errors.429}}</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section id="endpoints">
+    <h2>{{t:endpoints.title}}<a class="anchor" href="#endpoints" aria-label="{{t:ui.permalink}}">#</a></h2>
+    <div class="table"><table>
+      <thead><tr><th>{{t:endpoints.path}}</th><th>{{t:endpoints.port}}</th><th>{{t:endpoints.purpose}}</th></tr></thead>
+      <tbody>
+        <tr><td><span class="name">/mcp</span></td><td>http</td><td>{{t:endpoints.mcp}}</td></tr>
+        <tr><td><span class="name">/docs</span></td><td>http</td><td>{{t:endpoints.docs}}</td></tr>
+        <tr><td><span class="name">/healthz</span></td><td>http</td><td>{{t:endpoints.healthz}}</td></tr>
+        <tr><td><span class="name">/readyz</span></td><td>http</td><td>{{t:endpoints.readyz}}</td></tr>
+        <tr><td><span class="name">/metrics</span></td><td>metrics</td><td>{{t:endpoints.metrics}}</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section id="tools">
+    <h2>{{t:tools.title}}<a class="anchor" href="#tools" aria-label="{{t:ui.permalink}}">#</a></h2>
+    <p>{{t:tools.body}}</p>
+{{tools}}
+  </section>
+
+  <footer>hyperbilling-mcp v{{version}}<br>{{t:footer.notice}}</footer>
+</main>
+</div>
+</body>
+</html>

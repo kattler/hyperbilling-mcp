@@ -1,0 +1,254 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'Dockerfile'
+      - 'charts/hyperbilling-mcp/Chart.yaml'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Overwrite a version that is already published'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  BINARY: hyperbilling-mcp
+  IMAGE: ghcr.io/${{ github.repository_owner }}/hyperbilling-mcp
+  CHART_REGISTRY: ghcr.io/${{ github.repository_owner }}/charts
+
+jobs:
+  detect:
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+      packages: read
+    outputs:
+      version: ${{ steps.detect.outputs.version }}
+      release: ${{ steps.detect.outputs.release }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Detect the image release
+        id: detect
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FORCE: ${{ inputs.force }}
+        run: .github/scripts/detect-release.sh
+
+  test:
+    needs: detect
+    if: needs.detect.outputs.release == 'true'
+    runs-on: ubuntu-26.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.100.0
+          components: rustfmt, clippy, llvm-tools-preview
+
+      - name: Check formatting
+        run: cargo fmt --check
+
+      - name: Run clippy
+        run: cargo clippy --all-targets --locked -- -D warnings
+
+      - name: Install cargo-llvm-cov and cargo-audit
+        uses: taiki-e/install-action@v2.90.3
+        with:
+          tool: cargo-llvm-cov,cargo-audit
+
+      - name: Run tests with coverage (minimum 70%)
+        run: cargo llvm-cov --locked --fail-under-lines 70
+
+      - name: Audit the lockfile
+        run: cargo audit
+
+  build:
+    needs: [detect, test]
+    name: build (${{ matrix.arch }})
+    runs-on: ubuntu-26.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            target: x86_64-unknown-linux-musl
+          - arch: arm64
+            target: aarch64-unknown-linux-musl
+    env:
+      TARGET: ${{ matrix.target }}
+      ARCH: ${{ matrix.arch }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.100.0
+          targets: ${{ matrix.target }}
+
+      - name: Install cargo-zigbuild
+        # zig 0.16.0 builds of static musl binaries grow memory without bound at runtime
+        run: pip install ziglang==0.15.2 && cargo install cargo-zigbuild --version 0.23.0 --locked
+
+      - name: Cache cargo registry
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-release-${{ matrix.arch }}-${{ hashFiles('Cargo.lock') }}
+
+      - name: Build static binary
+        run: |
+          cargo zigbuild --release --locked --target "${TARGET}" --bin "${BINARY}"
+          cp "target/${TARGET}/release/${BINARY}" "${BINARY}-linux-${ARCH}"
+          file "${BINARY}-linux-${ARCH}"
+          file "${BINARY}-linux-${ARCH}" | grep -q 'statically linked'
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v7
+        with:
+          name: binary-${{ matrix.arch }}
+          path: ${{ env.BINARY }}-linux-${{ matrix.arch }}
+          if-no-files-found: error
+          retention-days: 1
+
+  image:
+    needs: [detect, build]
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+      packages: write
+    env:
+      VERSION: ${{ needs.detect.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Download binaries
+        uses: actions/download-artifact@v7
+        with:
+          pattern: binary-*
+          merge-multiple: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ env.VERSION }}
+            ${{ env.IMAGE }}:latest
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          provenance: false
+          sbom: false
+
+      - name: Verify both platforms
+        run: |
+          platforms=$(docker buildx imagetools inspect "${IMAGE}:${VERSION}" --format '{{range .Manifest.Manifests}}{{.Platform.OS}}/{{.Platform.Architecture}} {{end}}')
+          echo "${IMAGE}:${VERSION} platforms: ${platforms}"
+          for platform in linux/amd64 linux/arm64; do
+            [[ " ${platforms}" == *" ${platform} "* ]] || { echo "::error::${platform} missing from ${IMAGE}:${VERSION}"; exit 1; }
+          done
+          docker run --rm "${IMAGE}:${VERSION}" --version
+          {
+            echo "## ${IMAGE##*/} ${VERSION}"
+            echo ""
+            echo "\`\`\`console"
+            echo "docker pull ${IMAGE}:${VERSION}"
+            echo "\`\`\`"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+  chart:
+    needs: [detect, image]
+    # Runs after the image it references, and also when the image was already published
+    if: ${{ !cancelled() && !failure() }}
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v5
+        with:
+          version: v4.3.1
+
+      - name: Login to GitHub Container Registry
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
+        run: echo "${GH_TOKEN}" | helm registry login ghcr.io --username "${ACTOR}" --password-stdin
+
+      - name: Package and push chart
+        env:
+          FORCE: ${{ inputs.force }}
+        run: |
+          set -euo pipefail
+          dir=charts/hyperbilling-mcp
+          name=hyperbilling-mcp
+          version="$(yq '.version' "${dir}/Chart.yaml")"
+          app_version="$(yq '.appVersion' "${dir}/Chart.yaml")"
+          ref="oci://${CHART_REGISTRY}/${name}"
+
+          if [ "${FORCE}" != "true" ] && helm show chart "${ref}" --version "${version}" >/dev/null 2>&1; then
+            echo "${name} ${version} is already published, skipping"
+            exit 0
+          fi
+
+          helm lint --strict "${dir}"
+          helm package "${dir}"
+          helm push "${name}-${version}.tgz" "oci://${CHART_REGISTRY}"
+
+          {
+            echo "## ${name} chart ${version}"
+            echo ""
+            echo "- App version: \`${app_version}\`"
+            echo "- OCI: \`${ref}\`"
+            echo ""
+            echo "\`\`\`console"
+            echo "helm install ${name} ${ref} --version ${version}"
+            echo "\`\`\`"
+          } >> "${GITHUB_STEP_SUMMARY}"

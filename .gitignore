@@ -1,0 +1,6 @@
+/target/
+**/*.rs.bk
+hyperbilling-mcp-linux-*
+charts/**/charts/
+charts/**/*.tgz
+.DS_Store

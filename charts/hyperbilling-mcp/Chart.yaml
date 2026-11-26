@@ -1,0 +1,19 @@
+apiVersion: v2
+name: hyperbilling-mcp
+description: Model Context Protocol server for the Megazone HyperBilling Open API
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - mcp
+  - hyperbilling
+  - billing
+  - finops
+  - kagent
+home: https://github.com/kattler/hyperbilling-mcp
+sources:
+  - https://github.com/kattler/hyperbilling-mcp
+maintainers:
+  - name: younsl
+    email: cysl@kakao.com
+    url: https://github.com/younsl

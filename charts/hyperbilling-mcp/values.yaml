@@ -1,0 +1,152 @@
+# -- (string) Override the chart name
+nameOverride: ""
+# -- (string) Override the full release name
+fullnameOverride: ""
+image:
+  # -- (string) Image registry host
+  registry: ghcr.io
+  # -- (string) Image repository without the registry
+  repository: kattler/hyperbilling-mcp
+  # -- (string) Image tag. Empty uses the chart appVersion
+  tag: ""
+  # -- (string) Image digest (`sha256:...`), pinned as `tag@digest` when set
+  digest: ""
+  # -- (string) Image pull policy
+  pullPolicy: IfNotPresent
+# -- (list) Image pull secrets
+imagePullSecrets: []
+# -- (int) Replicas. MCP sessions live in Pod memory, so keep one unless the route has session affinity
+replicaCount: 1
+# -- (int) Old ReplicaSets kept for rollback
+revisionHistoryLimit: 3
+# -- (object) Deployment update strategy
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    # -- (string|int) Max extra Pods during an update
+    maxSurge: 1
+    # -- (string|int) Max unavailable Pods during an update
+    maxUnavailable: 0
+hyperbilling:
+  # -- (string) HyperBilling Open API base URL
+  url: "https://open.hyperapi.megazone.com"
+  # -- (int) Timeout of one HyperBilling API request in seconds
+  requestTimeoutSeconds: 60
+  # -- (string) Fallback `X-Client-Id` (the HyperBilling login email that issued the key), used when a caller sends no credential headers. Empty serves only callers that send their own
+  clientId: ""
+  # -- (string) Existing Secret with the fallback Open API key. Empty creates one from `hyperbilling.clientSecret`
+  existingSecret: ""
+  # -- (string) Key of the Open API key in the Secret
+  existingSecretKey: "HYPERBILLING_CLIENT_SECRET"
+  # -- (string) Fallback Open API key, used when `hyperbilling.existingSecret` is empty
+  clientSecret: ""
+docs:
+  # -- (bool) Serve the documentation page at `/docs` on the http port
+  enabled: true
+log:
+  # -- (string) Log level: trace, debug, info, warn, error
+  level: "info"
+  # -- (string) Log format: json or text
+  format: "json"
+# -- (list) Extra container env entries
+extraEnv: []
+  # - name: HTTPS_PROXY
+  #   value: http://proxy.example.com:3128
+# -- (list) Extra container envFrom entries
+extraEnvFrom: []
+  # - secretRef:
+  #     name: extra-secret
+ports:
+  # -- (int) Port for `/mcp`, `/docs`, `/healthz`, and `/readyz`
+  http: 8080
+  # -- (int) Port for `/metrics`
+  metrics: 8081
+serviceAccount:
+  # -- (bool) Create a ServiceAccount
+  create: true
+  # -- (string) ServiceAccount name. Empty uses the full name
+  name: ""
+  # -- (object) ServiceAccount annotations
+  annotations: {}
+  # -- (bool) Automount the ServiceAccount token
+  automountServiceAccountToken: false
+service:
+  # -- (string) Service type
+  type: ClusterIP
+  # -- (string) Service `trafficDistribution`, e.g. PreferClose. Empty omits it
+  trafficDistribution: ""
+serviceMonitor:
+  # -- (bool) Create a ServiceMonitor
+  enabled: false
+  # -- (string) Scrape interval
+  interval: 30s
+  # -- (string) Scrape timeout
+  scrapeTimeout: 10s
+  # -- (object) Extra ServiceMonitor labels
+  labels: {}
+  # -- (bool) Keep the metric's labels when they collide with the target's
+  honorLabels: false
+  # -- (list) Relabelings applied before scraping
+  relabelings: []
+  # -- (list) Metric relabelings applied before ingestion
+  metricRelabelings: []
+# -- (object) Container resources
+resources:
+  requests:
+    cpu: 10m
+    memory: 32Mi
+  limits:
+    memory: 64Mi
+# -- (list) Container resize policy for in-place resizing. Empty omits it
+resizePolicy:
+  - resourceName: cpu
+    restartPolicy: NotRequired
+  - resourceName: memory
+    restartPolicy: RestartContainer
+# -- (int) Shutdown grace period in seconds
+terminationGracePeriodSeconds: 30
+# -- (object) Extra Pod annotations
+podAnnotations: {}
+# -- (object) Extra Pod labels
+podLabels: {}
+# -- (object) Pod security context
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+  seccompProfile:
+    type: RuntimeDefault
+# -- (object) Container security context
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+# -- (object) Node selector
+nodeSelector: {}
+# -- (list) Tolerations
+tolerations: []
+# -- (object) Affinity
+affinity: {}
+# -- (list) Topology spread constraints. A missing `labelSelector` uses the chart's selector labels
+topologySpreadConstraints: []
+# -- (list) Extra manifests deployed with the release. Values are rendered through `tpl`, so they can use chart helpers and `.Values`
+extraObjects: []
+  # - apiVersion: networking.k8s.io/v1
+  #   kind: NetworkPolicy
+  #   metadata:
+  #     name: '{{ include "hyperbilling-mcp.fullname" . }}'
+  #   spec:
+  #     podSelector:
+  #       matchLabels:
+  #         app.kubernetes.io/name: '{{ include "hyperbilling-mcp.name" . }}'
+  #     policyTypes:
+  #       - Ingress
+  #     ingress:
+  #       - from:
+  #           - namespaceSelector:
+  #               matchLabels:
+  #                 kubernetes.io/metadata.name: kagent
+  #         ports:
+  #           - port: http
