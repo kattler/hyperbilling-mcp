@@ -175,6 +175,13 @@ tolerations: []
 affinity: {}
 # -- (list) Topology spread constraints. A missing `labelSelector` uses the chart's selector labels
 topologySpreadConstraints: []
+# -- (object) Extra Pod spec fields the chart does not set, merged into the Pod spec as is
+extraPodSpec: {}
+  # priorityClassName: system-cluster-critical
+  # dnsConfig:
+  #   options:
+  #     - name: ndots
+  #       value: "2"
 # -- (list) Extra manifests deployed with the release. Values are rendered through `tpl`, so they can use chart helpers and `.Values`
 extraObjects: []
   # - apiVersion: networking.k8s.io/v1

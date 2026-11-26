@@ -136,6 +136,7 @@ The following table lists the configurable parameters and their default values.
 | tolerations | list | `[]` | Tolerations |
 | affinity | object | `{}` | Affinity |
 | topologySpreadConstraints | list | `[]` | Topology spread constraints. A missing `labelSelector` uses the chart's selector labels |
+| extraPodSpec | object | `{}` | Extra Pod spec fields the chart does not set, merged into the Pod spec as is |
 | extraObjects | list | `[]` | Extra manifests deployed with the release. Values are rendered through `tpl`, so they can use chart helpers and `.Values` |
 
 ## Source Code

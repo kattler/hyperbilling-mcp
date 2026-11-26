@@ -33,4 +33,5 @@ First release.
 - `values.schema.json` that rejects unknown keys and wrong types.
 - Optional HTTPRoute and Ingress that route the whole hostname to the client-facing port, both off by default.
 - `extraObjects` rendered through `tpl`, with a NetworkPolicy example.
+- `extraPodSpec` for Pod spec fields the chart does not set, such as `priorityClassName` and `dnsConfig`.
 - In-place resize policy: a CPU change does not restart the container, a memory change does.

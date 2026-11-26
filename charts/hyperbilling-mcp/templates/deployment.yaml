@@ -119,3 +119,6 @@ spec:
           {{- end }}
         {{- end }}
       {{- end }}
+      {{- with .Values.extraPodSpec }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}

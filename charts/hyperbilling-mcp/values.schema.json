@@ -152,6 +152,7 @@
     "tolerations": { "type": ["array", "null"] },
     "affinity": { "type": ["object", "null"] },
     "topologySpreadConstraints": { "type": ["array", "null"] },
+    "extraPodSpec": { "type": ["object", "null"] },
     "extraObjects": { "type": "array", "items": { "type": "object" } }
   },
   "definitions": {
