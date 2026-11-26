@@ -22,7 +22,7 @@ First release.
 
 - The HyperBilling 401 response body is dropped because it echoes the submitted key, and the key is redacted from every other error body.
 - Scratch image holding the static binary and a CA bundle, running as a non-root user.
-- No advisory against any crate in the lockfile at release time.
+- No advisory against any crate in the lockfile at release time. The release pipeline fails on any CRITICAL or HIGH vulnerability Trivy finds in the lockfile or the images.
 
 ### Chart 0.1.0
 

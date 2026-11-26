@@ -13,7 +13,19 @@ A release starts on a push to `main` that changes a version value, and skips a v
 2. Add the release to `CHANGELOG.md`.
 3. Push to `main`.
 
-The image release runs the test and coverage gate, cross-compiles both architectures with cargo-zigbuild, and pushes one multi-platform image tagged with the version and `latest`. The chart is pushed after the image it references.
+The image release runs these jobs in order, and a failing job stops the release before anything is pushed.
+
+| Job | Gate |
+| --- | --- |
+| test | Formatting, clippy, tests, 70% line coverage, and `cargo audit` |
+| build | Static musl binaries for both architectures with cargo-zigbuild |
+| scan | Trivy on the lockfile and on both built images. Any CRITICAL or HIGH vulnerability fails the release, with or without a fix available |
+| image | One multi-platform image tagged with the version and `latest` |
+| chart | The chart, pushed after the image it references |
+
+The image is `scratch` with a stripped static binary, so an image scanner sees no package inside it. The lockfile scan is the one that covers the Rust dependencies.
+
+Third-party actions are pinned to a commit SHA. The scan job holds no registry write permission.
 
 ## Re-release
 
