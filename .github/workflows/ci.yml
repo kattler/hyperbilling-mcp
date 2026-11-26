@@ -77,6 +77,11 @@ jobs:
             --set hyperbilling.clientId=user@example.com \
             --set hyperbilling.existingSecret=hyperbilling-mcp \
             --set serviceMonitor.enabled=true > /dev/null
+          helm template hyperbilling-mcp charts/hyperbilling-mcp \
+            --api-versions gateway.networking.k8s.io/v1/HTTPRoute \
+            --set httpRoute.enabled=true \
+            --set 'httpRoute.parentRefs[0].name=external' \
+            --set ingress.enabled=true > /dev/null
 
   lint:
     runs-on: ubuntu-26.04

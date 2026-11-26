@@ -28,5 +28,6 @@ First release.
 
 - Deployment, Service, ServiceAccount, optional Secret, and optional ServiceMonitor.
 - `values.schema.json` that rejects unknown keys and wrong types.
+- Optional HTTPRoute and Ingress that route `/mcp` from outside the cluster, both off by default.
 - `extraObjects` rendered through `tpl`, with a NetworkPolicy example.
 - In-place resize policy: a CPU change does not restart the container, a memory change does.

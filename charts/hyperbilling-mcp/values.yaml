@@ -75,6 +75,50 @@ service:
   type: ClusterIP
   # -- (string) Service `trafficDistribution`, e.g. PreferClose. Empty omits it
   trafficDistribution: ""
+httpRoute:
+  # -- (bool) Create an HTTPRoute. Skipped when the cluster lacks the Gateway API
+  enabled: false
+  # -- (object) HTTPRoute annotations
+  annotations: {}
+  # -- (object) Extra HTTPRoute labels
+  labels: {}
+  # -- (list) Gateways the route attaches to
+  parentRefs: []
+    # - group: gateway.networking.k8s.io
+    #   kind: Gateway
+    #   name: external
+    #   namespace: gateway-system
+    #   sectionName: https
+  # -- (list) Hostnames the route matches
+  hostnames: []
+    # - hyperbilling-mcp.example.com
+  # -- (list) Request matches sent to the http port. `/docs` stays unrouted unless added
+  matches:
+    - path:
+        type: PathPrefix
+        value: /mcp
+  # -- (list) Filters applied to matched requests
+  filters: []
+ingress:
+  # -- (bool) Create an Ingress
+  enabled: false
+  # -- (string) IngressClass name. Empty uses the cluster default
+  className: ""
+  # -- (object) Ingress annotations
+  annotations: {}
+  # -- (object) Extra Ingress labels
+  labels: {}
+  # -- (list) Hosts and their paths sent to the http port. `/docs` stays unrouted unless added
+  hosts:
+    - host: hyperbilling-mcp.example.com
+      paths:
+        - path: /mcp
+          pathType: Prefix
+  # -- (list) TLS hosts and their certificate Secrets
+  tls: []
+    # - secretName: hyperbilling-mcp-tls
+    #   hosts:
+    #     - hyperbilling-mcp.example.com
 serviceMonitor:
   # -- (bool) Create a ServiceMonitor
   enabled: false

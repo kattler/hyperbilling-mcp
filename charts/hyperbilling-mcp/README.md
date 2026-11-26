@@ -105,6 +105,19 @@ The following table lists the configurable parameters and their default values.
 | serviceAccount.automountServiceAccountToken | bool | `false` | Automount the ServiceAccount token |
 | service.type | string | `"ClusterIP"` | Service type |
 | service.trafficDistribution | string | `""` | Service `trafficDistribution`, e.g. PreferClose. Empty omits it |
+| httpRoute.enabled | bool | `false` | Create an HTTPRoute. Skipped when the cluster lacks the Gateway API |
+| httpRoute.annotations | object | `{}` | HTTPRoute annotations |
+| httpRoute.labels | object | `{}` | Extra HTTPRoute labels |
+| httpRoute.parentRefs | list | `[]` | Gateways the route attaches to |
+| httpRoute.hostnames | list | `[]` | Hostnames the route matches |
+| httpRoute.matches | list | `[{"path":{"type":"PathPrefix","value":"/mcp"}}]` | Request matches sent to the http port. `/docs` stays unrouted unless added |
+| httpRoute.filters | list | `[]` | Filters applied to matched requests |
+| ingress.enabled | bool | `false` | Create an Ingress |
+| ingress.className | string | `""` | IngressClass name. Empty uses the cluster default |
+| ingress.annotations | object | `{}` | Ingress annotations |
+| ingress.labels | object | `{}` | Extra Ingress labels |
+| ingress.hosts | list | `[{"host":"hyperbilling-mcp.example.com","paths":[{"path":"/mcp","pathType":"Prefix"}]}]` | Hosts and their paths sent to the http port. `/docs` stays unrouted unless added |
+| ingress.tls | list | `[]` | TLS hosts and their certificate Secrets |
 | serviceMonitor.enabled | bool | `false` | Create a ServiceMonitor |
 | serviceMonitor.interval | string | `"30s"` | Scrape interval |
 | serviceMonitor.scrapeTimeout | string | `"10s"` | Scrape timeout |
