@@ -8,16 +8,28 @@ use axum::routing::get;
 use tokio::net::TcpListener;
 use tokio_util::sync::CancellationToken;
 
-use super::Metrics;
+use super::{Metrics, Readiness};
 
-pub fn health_router() -> Router {
+pub fn health_router(readiness: Readiness) -> Router {
     Router::new()
         .route("/healthz", get(ok))
-        .route("/readyz", get(ok))
+        .route("/readyz", get(ready))
+        .with_state(readiness)
 }
 
 async fn ok() -> StatusCode {
     StatusCode::OK
+}
+
+async fn ready(State(readiness): State<Readiness>) -> (StatusCode, &'static str) {
+    if readiness.is_ready() {
+        (StatusCode::OK, "ok")
+    } else {
+        (
+            StatusCode::SERVICE_UNAVAILABLE,
+            "HyperBilling API has not been reached yet",
+        )
+    }
 }
 
 pub fn metrics_router(metrics: Arc<Metrics>) -> Router {
@@ -68,16 +80,22 @@ mod tests {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let base = format!("http://{}", listener.local_addr().unwrap());
         let shutdown = CancellationToken::new();
+        let readiness = Readiness::default();
         let handle = tokio::spawn(serve(
             listener,
-            health_router().merge(metrics_router(metrics)),
+            health_router(readiness.clone()).merge(metrics_router(metrics)),
             shutdown.clone(),
         ));
+        let status = |path: &'static str| {
+            let url = format!("{base}{path}");
+            async move { reqwest::get(url).await.unwrap().status() }
+        };
 
-        for path in ["/healthz", "/readyz"] {
-            let response = reqwest::get(format!("{base}{path}")).await.unwrap();
-            assert_eq!(response.status(), 200);
-        }
+        assert_eq!(status("/healthz").await, 200);
+        assert_eq!(status("/readyz").await, 503);
+        readiness.mark_ready();
+        assert_eq!(status("/readyz").await, 200);
+        assert_eq!(status("/healthz").await, 200);
         let body = reqwest::get(format!("{base}/metrics"))
             .await
             .unwrap()

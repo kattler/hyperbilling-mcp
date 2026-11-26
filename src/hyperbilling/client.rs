@@ -14,6 +14,7 @@ pub const CLIENT_SECRET_HEADER: &str = "x-client-secret";
 
 const MAX_RESPONSE_BYTES: usize = 8 << 20;
 const MAX_ERROR_DETAIL_CHARS: usize = 500;
+const PROBE_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// No Debug: the secret must never reach a log line.
 #[derive(Clone)]
@@ -41,6 +42,7 @@ pub struct Client {
     base_url: String,
     fallback: Option<Credentials>,
     http: reqwest::Client,
+    timeout: Duration,
     metrics: Arc<Metrics>,
 }
 
@@ -59,8 +61,33 @@ impl Client {
             base_url: base_url.trim_end_matches('/').to_string(),
             fallback,
             http,
+            timeout,
             metrics,
         })
+    }
+
+    /// Sends no credentials, so a check spends none of a client's hourly quota.
+    pub fn base_url(&self) -> &str {
+        &self.base_url
+    }
+
+    /// Returns the answered status code.
+    pub async fn probe(&self) -> Result<u16, Error> {
+        let response = self
+            .http
+            .get(&self.base_url)
+            .timeout(PROBE_TIMEOUT.min(self.timeout))
+            .send()
+            .await
+            .map_err(Error::Request)?;
+        let status = response.status().as_u16();
+        if status >= 500 {
+            return Err(Error::Api {
+                status,
+                message: "server error".to_string(),
+            });
+        }
+        Ok(status)
     }
 
     pub async fn get(&self, caller: Option<&Credentials>, path: &str) -> Result<Reply, Error> {
@@ -345,6 +372,36 @@ pub mod tests {
     async fn transport_failure_is_a_request_error() {
         let client = client("http://127.0.0.1:1", Credentials::new("a@example.com", "k"));
         let err = client.get(None, "/x").await.unwrap_err();
+        assert!(matches!(err, Error::Request(_)));
+    }
+
+    #[tokio::test]
+    async fn probe_passes_on_any_answer_below_500_without_credentials() {
+        for status in [
+            StatusCode::OK,
+            StatusCode::UNAUTHORIZED,
+            StatusCode::NOT_FOUND,
+        ] {
+            let (url, seen) = spawn_upstream(status, "").await;
+            let client = client(&url, Credentials::new("svc@example.com", "svc-key"));
+            assert_eq!(client.probe().await.unwrap(), status.as_u16());
+            let seen = seen.lock().unwrap().clone();
+            assert_eq!(seen.method, "GET");
+            assert_eq!(seen.client_id, "");
+            assert_eq!(seen.client_secret, "");
+        }
+    }
+
+    #[tokio::test]
+    async fn probe_fails_on_server_error_and_transport_failure() {
+        let (url, _) = spawn_upstream(StatusCode::BAD_GATEWAY, "").await;
+        let err = client(&url, None).probe().await.unwrap_err();
+        assert!(matches!(err, Error::Api { status: 502, .. }));
+
+        let err = client("http://127.0.0.1:1", None)
+            .probe()
+            .await
+            .unwrap_err();
         assert!(matches!(err, Error::Request(_)));
     }
 

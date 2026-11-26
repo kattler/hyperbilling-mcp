@@ -80,7 +80,7 @@
   "endpoints.mcp": "streamable HTTP 기반 MCP.",
   "endpoints.docs": "이 페이지.",
   "endpoints.healthz": "생존 확인.",
-  "endpoints.readyz": "준비 상태 확인.",
+  "endpoints.readyz": "준비 상태 확인. HyperBilling API에 한 번 접근하기 전까지 503, 이후 200.",
   "endpoints.metrics": "도구 호출, 도구 지연 시간, API 요청에 대한 Prometheus 메트릭.",
   "tools.title": "도구",
   "tools.body": "서버가 등록한 도구 정의에서 생성하므로 <code>tools/list</code>가 돌려주는 내용과 항상 같습니다.",

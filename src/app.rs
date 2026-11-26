@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
 use axum::Router;
@@ -8,7 +9,7 @@ use rmcp::transport::streamable_http_server::StreamableHttpServerConfig;
 use rmcp::transport::streamable_http_server::session::local::LocalSessionManager;
 use tokio::net::TcpListener;
 use tokio_util::sync::CancellationToken;
-use tracing::info;
+use tracing::{info, warn};
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{EnvFilter, fmt};
@@ -17,8 +18,12 @@ use crate::config::Config;
 use crate::docs;
 use crate::hyperbilling::Client;
 use crate::mcp::Server;
-use crate::observability::Metrics;
 use crate::observability::server::{health_router, metrics_router, serve};
+use crate::observability::{Metrics, Readiness};
+
+const STARTUP_FAILURE_LOG_EVERY: u32 = 15;
+const STARTUP_CHECK_INTERVAL: Duration = Duration::from_secs(2);
+const UPSTREAM_CHECK_INTERVAL: Duration = Duration::from_secs(15);
 
 pub async fn start() -> Result<()> {
     let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
@@ -76,7 +81,17 @@ async fn run(
         metrics.clone(),
     )
     .context("build HyperBilling client")?;
-    let server = Server::new(Arc::new(client), metrics.clone());
+    let client = Arc::new(client);
+    let readiness = Readiness::default();
+    tokio::spawn(watch_upstream(
+        client.clone(),
+        readiness.clone(),
+        metrics.clone(),
+        STARTUP_CHECK_INTERVAL,
+        UPSTREAM_CHECK_INTERVAL,
+        shutdown.clone(),
+    ));
+    let server = Server::new(client, metrics.clone());
 
     let mut app = Router::new();
     if cfg.docs_enabled {
@@ -92,12 +107,80 @@ async fn run(
         serve(listener, app, shutdown.clone()),
         serve(
             metrics_listener,
-            health_router().merge(metrics_router(metrics)),
+            health_router(readiness).merge(metrics_router(metrics)),
             shutdown
         ),
     )
     .context("http server")?;
     Ok(())
+}
+
+async fn watch_upstream(
+    client: Arc<Client>,
+    readiness: Readiness,
+    metrics: Arc<Metrics>,
+    startup_interval: Duration,
+    interval: Duration,
+    shutdown: CancellationToken,
+) {
+    let url = client.base_url();
+    let started = Instant::now();
+    let mut attempts: u32 = 0;
+    let mut last = None;
+    info!(
+        url,
+        retry_seconds = startup_interval.as_secs_f64(),
+        "not ready, waiting for the first answer from the HyperBilling API"
+    );
+    loop {
+        let result = tokio::select! {
+            () = shutdown.cancelled() => return,
+            result = client.probe() => result,
+        };
+        let reachable = result.is_ok();
+        metrics.upstream_reachable(reachable);
+        match result {
+            Ok(status) if readiness.mark_ready() => info!(
+                url,
+                status,
+                attempts = attempts + 1,
+                waited_seconds = started.elapsed().as_secs_f64(),
+                "HyperBilling API reachable, ready until the process exits"
+            ),
+            Ok(status) if last == Some(false) => {
+                info!(url, status, "HyperBilling API reachable again");
+            }
+            Err(err) if !readiness.is_ready() => {
+                attempts += 1;
+                if attempts == 1 || attempts.is_multiple_of(STARTUP_FAILURE_LOG_EVERY) {
+                    warn!(
+                        url,
+                        error = %err,
+                        attempts,
+                        waited_seconds = started.elapsed().as_secs_f64(),
+                        "HyperBilling API unreachable, staying not ready"
+                    );
+                }
+            }
+            Err(err) if last != Some(false) => warn!(
+                url,
+                error = %err,
+                "HyperBilling API unreachable, staying ready and failing tool calls"
+            ),
+            Ok(_) | Err(_) => {}
+        }
+        last = Some(reachable);
+
+        let delay = if readiness.is_ready() {
+            interval
+        } else {
+            startup_interval
+        };
+        tokio::select! {
+            () = shutdown.cancelled() => return,
+            () = tokio::time::sleep(delay) => {}
+        }
+    }
 }
 
 fn mcp_router(server: Arc<Server>, shutdown: &CancellationToken) -> Router {
@@ -233,6 +316,7 @@ mod tests {
         assert_eq!(seen.client_id, "caller@example.com");
         assert_eq!(seen.client_secret, "caller-key");
 
+        wait_for_status(&format!("{metrics_base}/readyz"), 200).await;
         for path in ["/healthz", "/readyz"] {
             let internal = reqwest::get(format!("{metrics_base}{path}")).await.unwrap();
             assert_eq!(internal.status(), 200, "{path}");
@@ -250,9 +334,86 @@ mod tests {
                 "hyperbilling_mcp_upstream_requests_total{method=\"GET\",code=\"200\"} 1"
             )
         );
+        assert!(metrics.contains("hyperbilling_mcp_upstream_reachable 1"));
 
         shutdown.cancel();
         handle.await.unwrap().unwrap();
+    }
+
+    async fn wait_for_status(url: &str, status: u16) {
+        for _ in 0..200 {
+            if reqwest::get(url).await.unwrap().status() == status {
+                return;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+        panic!("{url} never answered {status}");
+    }
+
+    #[tokio::test]
+    async fn readiness_latches_after_the_first_reachable_check() {
+        use std::sync::atomic::{AtomicBool, Ordering};
+
+        install_crypto_provider();
+        let upstream = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = format!("http://{}", upstream.local_addr().unwrap());
+        let down = Arc::new(AtomicBool::new(true));
+        tokio::spawn({
+            let down = down.clone();
+            let app = Router::new().fallback(move || {
+                let down = down.clone();
+                async move {
+                    if down.load(Ordering::Relaxed) {
+                        StatusCode::SERVICE_UNAVAILABLE
+                    } else {
+                        StatusCode::TOO_MANY_REQUESTS
+                    }
+                }
+            });
+            async move { axum::serve(upstream, app).await }
+        });
+
+        let metrics = Arc::new(Metrics::new("test", "test"));
+        let client =
+            Arc::new(Client::new(&url, None, Duration::from_secs(5), metrics.clone()).unwrap());
+        let readiness = Readiness::default();
+        let shutdown = CancellationToken::new();
+        let handle = tokio::spawn(watch_upstream(
+            client,
+            readiness.clone(),
+            metrics.clone(),
+            Duration::from_millis(10),
+            Duration::from_millis(10),
+            shutdown.clone(),
+        ));
+        let wait_for_gauge = |value: u8| {
+            let metrics = metrics.clone();
+            let series = format!("hyperbilling_mcp_upstream_reachable {value}");
+            async move {
+                for _ in 0..200 {
+                    if metrics.encode().unwrap().contains(&series) {
+                        return;
+                    }
+                    tokio::time::sleep(Duration::from_millis(10)).await;
+                }
+                panic!("never saw {series}");
+            }
+        };
+
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        assert!(!readiness.is_ready());
+
+        down.store(false, Ordering::Relaxed);
+        wait_for_gauge(1).await;
+        assert!(readiness.is_ready());
+
+        down.store(true, Ordering::Relaxed);
+        wait_for_gauge(0).await;
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        assert!(readiness.is_ready());
+
+        shutdown.cancel();
+        handle.await.unwrap();
     }
 
     type Running = (
@@ -263,7 +424,15 @@ mod tests {
 
     async fn spawn(flags: &[&str]) -> Running {
         install_crypto_provider();
-        let cfg = Config::parse_from(std::iter::once(&"hyperbilling-mcp").chain(flags));
+        let cfg = Config::parse_from(
+            [
+                "hyperbilling-mcp",
+                "--hyperbilling-url",
+                "http://127.0.0.1:1",
+            ]
+            .iter()
+            .chain(flags),
+        );
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let metrics_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let base = format!("http://{}", listener.local_addr().unwrap());

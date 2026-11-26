@@ -21,10 +21,18 @@ Every flag falls back to an environment variable, which is how the chart sets it
 | `/mcp` | http | MCP over streamable HTTP |
 | `/docs` | http | Documentation page. `/` redirects to it |
 | `/healthz` | metrics | Liveness |
-| `/readyz` | metrics | Readiness |
+| `/readyz` | metrics | Readiness. `503` until the HyperBilling API has been reached once, `200` from then on |
 | `/metrics` | metrics | Prometheus metrics |
 
 The http port carries only what a client may see, so a route can send a whole hostname to it. Probes and metrics stay on the metrics port, which no route reaches.
+
+## Readiness
+
+A pod starts not ready. The server requests `HYPERBILLING_URL` every 2 seconds with a 5 second timeout until one request is answered, then `/readyz` turns to `200` and stays there until the process exits. A new pod that cannot reach the API, because of egress rules, DNS, or TLS trust, never receives traffic, so a rollout stops while the old pods keep serving.
+
+The check sends no credentials, so it spends none of the hourly quota. Any answer below `500` counts as reachable, including `401`, `404`, and `429`. A connection failure, a timeout, or a `5xx` answer does not.
+
+After the pod is ready the check runs every 15 seconds and only sets the `hyperbilling_mcp_upstream_reachable` gauge. An API outage leaves pods ready, so a tool call returns the upstream failure as a tool error and `/docs` stays up. Alert on the gauge to catch an outage. `/healthz` ignores the API, so an outage does not restart pods.
 
 ## TLS trust
 

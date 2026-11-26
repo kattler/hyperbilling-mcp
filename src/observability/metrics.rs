@@ -4,6 +4,7 @@ use prometheus_client::encoding::EncodeLabelSet;
 use prometheus_client::encoding::text::encode;
 use prometheus_client::metrics::counter::Counter;
 use prometheus_client::metrics::family::Family;
+use prometheus_client::metrics::gauge::Gauge;
 use prometheus_client::metrics::histogram::Histogram;
 use prometheus_client::metrics::info::Info;
 use prometheus_client::registry::Registry;
@@ -40,6 +41,7 @@ pub struct Metrics {
     tool_calls: Family<ToolOutcomeLabels, Counter>,
     tool_duration: Family<ToolLabels, Histogram>,
     upstream_requests: Family<UpstreamLabels, Counter>,
+    upstream_reachable: Gauge,
 }
 
 fn duration_histogram() -> Histogram {
@@ -53,6 +55,7 @@ impl Metrics {
         let tool_duration =
             Family::<ToolLabels, Histogram>::new_with_constructor(duration_histogram);
         let upstream_requests = Family::<UpstreamLabels, Counter>::default();
+        let upstream_reachable = Gauge::default();
 
         registry.register(
             "build",
@@ -77,12 +80,18 @@ impl Metrics {
             "Requests sent to the HyperBilling API by method and status code (transport_error when no response arrived)",
             upstream_requests.clone(),
         );
+        registry.register(
+            "upstream_reachable",
+            "Whether the last reachability check reached the HyperBilling API (1) or not (0)",
+            upstream_reachable.clone(),
+        );
 
         Self {
             registry,
             tool_calls,
             tool_duration,
             upstream_requests,
+            upstream_reachable,
         }
     }
 
@@ -109,6 +118,10 @@ impl Metrics {
             .inc();
     }
 
+    pub fn upstream_reachable(&self, reachable: bool) {
+        self.upstream_reachable.set(i64::from(reachable));
+    }
+
     pub fn encode(&self) -> Result<String, std::fmt::Error> {
         let mut out = String::new();
         encode(&mut out, &self.registry)?;
@@ -129,8 +142,10 @@ mod tests {
             Duration::from_millis(20),
         );
         metrics.upstream_request("POST", "200");
+        metrics.upstream_reachable(true);
 
         let out = metrics.encode().unwrap();
+        assert!(out.contains("hyperbilling_mcp_upstream_reachable 1"));
         assert!(out.contains("hyperbilling_mcp_build_info{version=\"1.2.3\",commit=\"abc\"} 1"));
         assert!(out.contains(
             "hyperbilling_mcp_tool_calls_total{tool=\"hyperbilling_search_billing\",outcome=\"ok\"} 1"

@@ -20,6 +20,7 @@ First release.
 - Animated architecture diagrams on the documentation page for a direct MCP client and for a LiteLLM proxy in front.
 - Prometheus metrics on a separate port for tool calls, tool latency, and API requests. The client-facing port serves only `/mcp` and `/docs`.
 - `/healthz` and `/readyz` probes on the metrics port, and graceful shutdown on SIGTERM.
+- `/readyz` answers `503` until the pod has reached the HyperBilling API once, so a pod that cannot reach the API never receives traffic. The `hyperbilling_mcp_upstream_reachable` gauge reports the latest check for alerting on an outage.
 
 ### Security
 

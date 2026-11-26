@@ -7,6 +7,7 @@ Prometheus metrics are served at `/metrics` on their own port (`8081` by default
 | `hyperbilling_mcp_tool_calls_total` | `tool`, `outcome` | Tool calls by tool and outcome |
 | `hyperbilling_mcp_tool_call_duration_seconds` | `tool` | Tool call latency including the API request |
 | `hyperbilling_mcp_upstream_requests_total` | `method`, `code` | API requests by status code, `transport_error` when no response arrived |
+| `hyperbilling_mcp_upstream_reachable` | none | `1` when the last reachability check reached the API, `0` otherwise |
 | `hyperbilling_mcp_build_info` | `version`, `commit` | Build of the running binary |
 
 ## Outcomes
