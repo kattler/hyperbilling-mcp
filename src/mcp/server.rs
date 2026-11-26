@@ -19,7 +19,7 @@ use crate::hyperbilling::{Client, Credentials, Error, Reply};
 use crate::observability::Metrics;
 use crate::observability::metrics::{OUTCOME_ERROR, OUTCOME_OK, OUTCOME_TOOL_ERROR};
 
-const INSTRUCTIONS: &str = "Read-only AWS billing data from Megazone HyperBilling. Call hyperbilling_list_linked_accounts first to learn the account IDs, hyperbilling_list_tag_keys before grouping by a tag, then hyperbilling_search_billing for a custom query or hyperbilling_get_recent_billing for a fixed recent report. A search returns at most 1000 rows: pass a non-empty response NextDataToken back as next_data_token until it comes back empty. The API allows 500 requests per hour.";
+const INSTRUCTIONS: &str = "Read-only AWS billing data from Megazone HyperBilling. Call hyperbilling_list_linked_accounts first to learn the account IDs, hyperbilling_list_tag_keys before grouping by a tag, then hyperbilling_search_billing for a custom query, hyperbilling_get_recent_billing for a fixed recent report, or hyperbilling_get_estimated_cost for this month's forecast. A search returns at most 1000 rows: pass a non-empty response NextDataToken back as next_data_token until it comes back empty. The API allows 2000 requests per hour.";
 
 type ToolResult = Result<CallToolResult, ErrorData>;
 
@@ -110,6 +110,19 @@ impl Server {
         reply(self.client.post(caller, "/v1/search/billing", &body).await)
     }
 
+    async fn get_estimated_cost(
+        &self,
+        caller: Option<&Credentials>,
+        args: LinkedAccountsArgs,
+    ) -> ToolResult {
+        let body = args.into_filter_body();
+        reply(
+            self.client
+                .post(caller, "/v2/search/billing/estimated", &body)
+                .await,
+        )
+    }
+
     async fn get_recent_billing(
         &self,
         caller: Option<&Credentials>,
@@ -191,7 +204,9 @@ tool_surface! {
     "hyperbilling_list_tag_keys", LinkedAccountsArgs, list_tag_keys, "POST /v1/search/tag",
         "List the cost allocation tag keys of each given linked account (user:Team, aws:eks:namespace). Prefix a key with TAG: to group by it in hyperbilling_search_billing.";
     "hyperbilling_search_billing", SearchBillingArgs, search_billing, "POST /v1/search/billing",
-        "Query AWS billing data with a custom period, grouping and measures. Returns Results rows (GroupBy values and their Value) and, when more than 1000 rows match, a NextDataToken to pass back as next_data_token.";
+        "Query AWS billing data with a custom period, grouping, measures and filters by region, service, tag, operation, usage type, line item type and product category. Returns Results rows (GroupBy values and their Value) and, when more than 1000 rows match, a NextDataToken to pass back as next_data_token.";
+    "hyperbilling_get_estimated_cost", LinkedAccountsArgs, get_estimated_cost, "POST /v2/search/billing/estimated",
+        "Estimate this month's cost for the given linked accounts from the daily cost trend. Returns CurrentMonthCost, EstimatedCost, LastMonthCost, MonthOverMonthChangePercent, Last6MonthsCosts and latestBillingDate, with amounts in USD and dates in UTC. Fails with 400 while the month has too little data.";
     "hyperbilling_get_recent_billing", RecentBillingArgs, get_recent_billing, "POST /v2/search/billing/{view}",
         "Get a fixed recent billing report for the given linked accounts, where the view sets the period and the grouping. Cheaper to call than hyperbilling_search_billing when one of the views fits.";
 }
@@ -276,6 +291,7 @@ mod tests {
         assert_eq!(
             names,
             [
+                "hyperbilling_get_estimated_cost",
                 "hyperbilling_get_recent_billing",
                 "hyperbilling_list_linked_accounts",
                 "hyperbilling_list_tag_keys",
@@ -293,8 +309,9 @@ mod tests {
         }
         assert!(server.get_tool("hyperbilling_search_billing").is_some());
         let docs = server.tool_docs();
-        assert_eq!(docs.len(), 4);
-        assert_eq!(docs[0].upstream, "POST /v2/search/billing/{view}");
+        assert_eq!(docs.len(), 5);
+        assert_eq!(docs[0].upstream, "POST /v2/search/billing/estimated");
+        assert_eq!(docs[1].upstream, "POST /v2/search/billing/{view}");
         assert!(docs.iter().all(|doc| !doc.upstream.is_empty()));
         assert_eq!(Server::upstream("no_such_tool"), "");
         assert!(server.get_info().instructions.is_some());
@@ -396,6 +413,22 @@ mod tests {
         assert_eq!(recent.path, "/v2/search/billing/latest/region");
         assert_eq!(
             serde_json::from_str::<Value>(&recent.body).unwrap(),
+            json!({"Filter": {"LinkedAccount": ["123456789012"]}})
+        );
+
+        server
+            .call(
+                None,
+                "hyperbilling_get_estimated_cost",
+                Some(arguments(json!({"linked_accounts": "123456789012"}))),
+            )
+            .await
+            .unwrap();
+        let estimated = seen.lock().unwrap().clone();
+        assert_eq!(estimated.method, "POST");
+        assert_eq!(estimated.path, "/v2/search/billing/estimated");
+        assert_eq!(
+            serde_json::from_str::<Value>(&estimated.body).unwrap(),
             json!({"Filter": {"LinkedAccount": ["123456789012"]}})
         );
     }

@@ -8,13 +8,15 @@ First release.
 
 ### Added
 
-- Streamable HTTP MCP endpoint at `/mcp` with four read-only tools over the Megazone HyperBilling Open API: `hyperbilling_list_linked_accounts`, `hyperbilling_list_tag_keys`, `hyperbilling_search_billing`, and `hyperbilling_get_recent_billing`.
-- Region and service code filters, tag grouping, and pagination through `NextDataToken` on `hyperbilling_search_billing`.
+- Streamable HTTP MCP endpoint at `/mcp` with five read-only tools over the Megazone HyperBilling Open API, one for every request of the official guide V1.4.1: `hyperbilling_list_linked_accounts`, `hyperbilling_list_tag_keys`, `hyperbilling_search_billing`, `hyperbilling_get_recent_billing`, and `hyperbilling_get_estimated_cost`.
+- Region, service code, tag, operation, usage type, line item type, and product category filters, tag grouping, and pagination through `NextDataToken` on `hyperbilling_search_billing`.
 - Seven fixed recent reports on `hyperbilling_get_recent_billing`.
 - Caller credentials from the `X-Client-Id` and `X-Client-Secret` request headers, with an optional fallback credential from the environment.
 - Array and object arguments accepted as strings, for MCP clients that send every argument as a string.
 - Documentation page at `/docs` in English and Korean, a React application embedded in the binary and rendered from the registered tool definitions. The theme and the language follow the browser, and the layout is responsive.
 - Setup prompt on the documentation page. It carries the address the page was opened at, so pasting it into an MCP client registers this server.
+- Status board on the documentation page for the connection to the HyperBilling API, with the last 60 reachability checks.
+- HyperBilling Open API reference at `/docs/api`, written from the official guide V1.4.1 and checked against the live API, with every request, `Filter` field, dimension, measure, status code, and limit.
 - Copy button on every code block of the documentation page.
 - Build date in the footer of the documentation page.
 - Animated architecture diagrams on the documentation page for a direct MCP client and for a LiteLLM proxy in front.

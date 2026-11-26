@@ -1,5 +1,6 @@
 import { Anchor } from "./Anchor";
 import { Rich, useI18n } from "./i18n";
+import { CopyButton, Value } from "./Snippet";
 import type { Tool } from "./types";
 
 function ToolCard({ tool }: { tool: Tool }) {
@@ -9,12 +10,14 @@ function ToolCard({ tool }: { tool: Tool }) {
       <header>
         <h3>
           {tool.name}
+          <CopyButton text={tool.name} />
           <Anchor id={tool.name} />
         </h3>
       </header>
       <div className="upstream">
         <span className={`method ${tool.method.toLowerCase()}`}>{tool.method}</span>
         <code>{tool.path}</code>
+        <CopyButton text={tool.path} />
       </div>
       <p>{translated(`tool.${tool.name}.description`, tool.description)}</p>
       {tool.arguments.length === 0 ? (
@@ -33,7 +36,7 @@ function ToolCard({ tool }: { tool: Tool }) {
               {tool.arguments.map((argument) => (
                 <tr key={argument.name}>
                   <td>
-                    <span className="name">{argument.name}</span>
+                    <Value text={argument.name} />
                     <br />
                     <span className="type">{argument.kind}</span>
                   </td>
@@ -68,6 +71,7 @@ export function Tools({ tools }: { tools: Tool[] }) {
     <section id="tools">
       <h2>
         {t("tools.title")}
+        <span className="count">{tools.length}</span>
         <Anchor id="tools" />
       </h2>
       <p>

@@ -17,9 +17,10 @@ use tracing_subscriber::{EnvFilter, fmt};
 use crate::config::Config;
 use crate::docs;
 use crate::hyperbilling::Client;
+use crate::hyperbilling::Error;
 use crate::mcp::Server;
 use crate::observability::server::{health_router, metrics_router, serve};
-use crate::observability::{Metrics, Readiness};
+use crate::observability::{Metrics, Readiness, UpstreamHealth};
 
 const STARTUP_FAILURE_LOG_EVERY: u32 = 15;
 const STARTUP_CHECK_INTERVAL: Duration = Duration::from_secs(2);
@@ -83,9 +84,11 @@ async fn run(
     .context("build HyperBilling client")?;
     let client = Arc::new(client);
     let readiness = Readiness::default();
+    let health = Arc::new(UpstreamHealth::default());
     tokio::spawn(watch_upstream(
         client.clone(),
         readiness.clone(),
+        health.clone(),
         metrics.clone(),
         STARTUP_CHECK_INTERVAL,
         UPSTREAM_CHECK_INTERVAL,
@@ -100,7 +103,7 @@ async fn run(
             env!("BUILD_DATE"),
             &server.tool_docs(),
         );
-        app = app.merge(docs::router(pages));
+        app = app.merge(docs::router(pages, health));
     }
     let app = app.merge(mcp_router(server, &shutdown));
     tokio::try_join!(
@@ -118,6 +121,7 @@ async fn run(
 async fn watch_upstream(
     client: Arc<Client>,
     readiness: Readiness,
+    health: Arc<UpstreamHealth>,
     metrics: Arc<Metrics>,
     startup_interval: Duration,
     interval: Duration,
@@ -133,11 +137,17 @@ async fn watch_upstream(
         "not ready, waiting for the first answer from the HyperBilling API"
     );
     loop {
+        let sent = Instant::now();
         let result = tokio::select! {
             () = shutdown.cancelled() => return,
             result = client.probe() => result,
         };
         let reachable = result.is_ok();
+        let status = match &result {
+            Ok(status) | Err(Error::Api { status, .. }) => Some(*status),
+            Err(_) => None,
+        };
+        health.record(reachable, status, sent.elapsed());
         metrics.upstream_reachable(reachable);
         match result {
             Ok(status) if readiness.mark_ready() => info!(
@@ -377,10 +387,12 @@ mod tests {
         let client =
             Arc::new(Client::new(&url, None, Duration::from_secs(5), metrics.clone()).unwrap());
         let readiness = Readiness::default();
+        let health = Arc::new(UpstreamHealth::default());
         let shutdown = CancellationToken::new();
         let handle = tokio::spawn(watch_upstream(
             client,
             readiness.clone(),
+            health.clone(),
             metrics.clone(),
             Duration::from_millis(10),
             Duration::from_millis(10),
@@ -411,6 +423,17 @@ mod tests {
         wait_for_gauge(0).await;
         tokio::time::sleep(Duration::from_millis(50)).await;
         assert!(readiness.is_ready());
+
+        let snapshot = health.snapshot();
+        assert!(snapshot.ready_since.is_some());
+        assert_eq!(snapshot.checks.first().unwrap().status, Some(503));
+        assert!(
+            snapshot
+                .checks
+                .iter()
+                .any(|check| check.status == Some(429))
+        );
+        assert!(!snapshot.checks.last().unwrap().reachable);
 
         shutdown.cancel();
         handle.await.unwrap();
@@ -484,6 +507,20 @@ mod tests {
             assert_eq!(asset.headers()["content-type"], content_type);
             assert!(asset.text().await.unwrap().contains(text));
         }
+        let api = reqwest::get(format!("{base}/docs/api?lang=ko"))
+            .await
+            .unwrap();
+        assert_eq!(api.status(), 200);
+        assert_eq!(api.headers()["content-language"], "ko");
+        assert!(api.text().await.unwrap().contains(r#""page":"api""#));
+
+        let status = reqwest::get(format!("{base}/docs/status")).await.unwrap();
+        assert_eq!(status.status(), 200);
+        assert_eq!(status.headers()["cache-control"], "no-store");
+        let status: Value = serde_json::from_str(&status.text().await.unwrap()).unwrap();
+        assert!(status["ready_since"].is_null());
+        assert!(status["checks"].is_array());
+
         let negotiated = reqwest::Client::new()
             .get(format!("{base}/docs"))
             .header("accept-language", "ko-KR,ko;q=0.9,en;q=0.8")
@@ -501,7 +538,7 @@ mod tests {
     async fn docs_can_be_disabled() {
         let (base, shutdown, handle) = spawn(&["--docs-enabled", "false"]).await;
 
-        for path in ["/", "/docs", "/docs/app.js"] {
+        for path in ["/", "/docs", "/docs/api", "/docs/status", "/docs/app.js"] {
             let response = reqwest::get(format!("{base}{path}")).await.unwrap();
             assert_eq!(response.status(), 404, "{path}");
         }

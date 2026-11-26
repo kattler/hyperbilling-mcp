@@ -26,7 +26,7 @@ A tool name that is not registered is counted under `unknown`, so a caller canno
 sum(rate(hyperbilling_mcp_upstream_requests_total[1h])) * 3600
 ```
 
-Requests per hour, to compare with the HyperBilling limit of 500.
+Requests per hour, to compare with the HyperBilling limit of 2000.
 
 ```promql
 sum by (tool) (rate(hyperbilling_mcp_tool_calls_total{outcome!="ok"}[5m]))

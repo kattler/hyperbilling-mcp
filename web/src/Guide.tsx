@@ -1,6 +1,6 @@
 import { Anchor } from "./Anchor";
 import { Rich, useI18n } from "./i18n";
-import { Snippet } from "./Snippet";
+import { Snippet, Value } from "./Snippet";
 
 export function Connect() {
   const { t } = useI18n();
@@ -60,13 +60,13 @@ export function Authentication() {
           <tbody>
             <tr>
               <td>
-                <span className="name">X-Client-Id</span>
+                <Value text="X-Client-Id" />
               </td>
               <td>{t("auth.client_id")}</td>
             </tr>
             <tr>
               <td>
-                <span className="name">X-Client-Secret</span>
+                <Value text="X-Client-Secret" />
               </td>
               <td>{t("auth.client_secret")}</td>
             </tr>
@@ -81,11 +81,12 @@ export function Authentication() {
 export function Limits() {
   const { t } = useI18n();
   const cards = [
-    { value: "500", label: t("limits.requests") },
+    { value: "2000", label: t("limits.requests") },
     { value: "1000", label: t("limits.rows") },
     { value: "5", label: t("limits.dimensions") },
     { value: t("limits.daily.value"), label: t("limits.daily") },
     { value: t("limits.monthly.value"), label: t("limits.monthly") },
+    { value: t("api.limit.key.value"), label: t("api.limit.key") },
   ];
   return (
     <section id="limits">
@@ -113,7 +114,9 @@ export function Errors() {
     { status: "400", meaning: t("errors.400") },
     { status: "401", meaning: t("errors.401") },
     { status: "403", meaning: t("errors.403") },
+    { status: "404", meaning: t("errors.404") },
     { status: "429", meaning: t("errors.429") },
+    { status: "500", meaning: t("errors.500") },
   ];
   return (
     <section id="errors">
@@ -134,7 +137,7 @@ export function Errors() {
             {rows.map((row) => (
               <tr key={row.status}>
                 <td>
-                  <span className="name">{row.status}</span>
+                  <Value text={row.status} />
                 </td>
                 <td>{row.meaning}</td>
               </tr>
@@ -151,6 +154,8 @@ export function Endpoints() {
   const rows = [
     { path: "/mcp", port: "http", purpose: t("endpoints.mcp") },
     { path: "/docs", port: "http", purpose: t("endpoints.docs") },
+    { path: "/docs/api", port: "http", purpose: t("endpoints.docs_api") },
+    { path: "/docs/status", port: "http", purpose: t("endpoints.docs_status") },
     { path: "/healthz", port: "metrics", purpose: t("endpoints.healthz") },
     { path: "/readyz", port: "metrics", purpose: t("endpoints.readyz") },
     { path: "/metrics", port: "metrics", purpose: t("endpoints.metrics") },
@@ -174,7 +179,7 @@ export function Endpoints() {
             {rows.map((row) => (
               <tr key={row.path}>
                 <td>
-                  <span className="name">{row.path}</span>
+                  <Value text={row.path} />
                 </td>
                 <td>{row.port}</td>
                 <td>{row.purpose}</td>

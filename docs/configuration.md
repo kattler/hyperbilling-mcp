@@ -20,6 +20,8 @@ Every flag falls back to an environment variable, which is how the chart sets it
 | --- | --- | --- |
 | `/mcp` | http | MCP over streamable HTTP |
 | `/docs` | http | Documentation page. `/` redirects to it |
+| `/docs/api` | http | HyperBilling Open API reference |
+| `/docs/status` | http | Recent reachability checks as JSON, read by the status board |
 | `/healthz` | metrics | Liveness |
 | `/readyz` | metrics | Readiness. `503` until the HyperBilling API has been reached once, `200` from then on |
 | `/metrics` | metrics | Prometheus metrics |

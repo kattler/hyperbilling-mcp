@@ -1,4 +1,4 @@
-//! The embedded documentation page: a React bundle built from `web/`, served
+//! The embedded documentation pages: a React bundle built from `web/`, served
 //! with the registered tool definitions injected as JSON.
 
 use std::sync::Arc;
@@ -7,16 +7,18 @@ use axum::Router;
 use axum::extract::{RawQuery, State};
 use axum::http::{HeaderMap, header};
 use axum::response::{IntoResponse, Redirect, Response};
-use axum::routing::get;
+use axum::routing::{MethodRouter, get};
 use serde::Serialize;
 use serde_json::Value;
 
+use crate::mcp::args::RecentView;
 use crate::mcp::server::ToolDoc;
+use crate::observability::UpstreamHealth;
 
 const SHELL: &str = include_str!("docs/shell.html");
 const SCRIPT: &str = include_str!("../web/dist/app.js");
 const STYLESHEET: &str = include_str!("../web/dist/app.css");
-const CONTENT_SECURITY_POLICY: &str = "default-src 'none'; script-src 'self'; style-src 'self'; base-uri 'none'; frame-ancestors 'none'";
+const CONTENT_SECURITY_POLICY: &str = "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Locale {
@@ -59,31 +61,63 @@ impl Locale {
     }
 }
 
-pub struct Pages {
-    en: String,
-    ko: String,
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Page {
+    Guide,
+    Api,
 }
 
-impl Pages {
-    pub fn render(version: &str, built: &str, tools: &[ToolDoc]) -> Arc<Self> {
-        Arc::new(Self {
-            en: render(Locale::En, version, built, tools),
-            ko: render(Locale::Ko, version, built, tools),
-        })
+impl Page {
+    const ALL: [Self; 2] = [Self::Guide, Self::Api];
+
+    const fn code(self) -> &'static str {
+        match self {
+            Self::Guide => "guide",
+            Self::Api => "api",
+        }
     }
 
-    fn get(&self, locale: Locale) -> &str {
-        match locale {
-            Locale::En => &self.en,
-            Locale::Ko => &self.ko,
+    /// Relative, so the pages keep working behind a path prefix.
+    const fn assets(self) -> &'static str {
+        match self {
+            Self::Guide => "docs/",
+            Self::Api => "",
         }
     }
 }
 
-pub fn router(pages: Arc<Pages>) -> Router {
+pub struct Pages(Vec<(Page, Locale, String)>);
+
+impl Pages {
+    pub fn render(version: &str, built: &str, tools: &[ToolDoc]) -> Arc<Self> {
+        let pages = Page::ALL.into_iter().flat_map(|page| {
+            Locale::ALL
+                .into_iter()
+                .map(move |locale| (page, locale, render(page, locale, version, built, tools)))
+        });
+        Arc::new(Self(pages.collect()))
+    }
+
+    fn get(&self, page: Page, locale: Locale) -> &str {
+        self.0
+            .iter()
+            .find(|(p, l, _)| *p == page && *l == locale)
+            .map_or("", |(_, _, html)| html)
+    }
+}
+
+pub fn router(pages: Arc<Pages>, health: Arc<UpstreamHealth>) -> Router {
     Router::new()
         .route("/", get(|| async { Redirect::temporary("/docs") }))
-        .route("/docs", get(serve))
+        .route("/docs", page(Page::Guide))
+        .route("/docs/api", page(Page::Api))
+        .route(
+            "/docs/status",
+            get(move || {
+                let health = health.clone();
+                async move { status(&health) }
+            }),
+        )
         .route(
             "/docs/app.js",
             get(|| async { asset("text/javascript; charset=utf-8", SCRIPT) }),
@@ -95,15 +129,19 @@ pub fn router(pages: Arc<Pages>) -> Router {
         .with_state(pages)
 }
 
-async fn serve(
-    State(pages): State<Arc<Pages>>,
-    RawQuery(query): RawQuery,
-    headers: HeaderMap,
-) -> Response {
+fn page(page: Page) -> MethodRouter<Arc<Pages>> {
+    get(
+        move |State(pages): State<Arc<Pages>>, RawQuery(query): RawQuery, headers: HeaderMap| async move {
+            serve(page, &pages, query.as_deref(), &headers)
+        },
+    )
+}
+
+fn serve(page: Page, pages: &Pages, query: Option<&str>, headers: &HeaderMap) -> Response {
     let accept_language = headers
         .get(header::ACCEPT_LANGUAGE)
         .and_then(|value| value.to_str().ok());
-    let locale = Locale::negotiate(query.as_deref(), accept_language);
+    let locale = Locale::negotiate(query, accept_language);
     (
         [
             (header::CONTENT_TYPE, "text/html; charset=utf-8"),
@@ -113,7 +151,20 @@ async fn serve(
             (header::X_CONTENT_TYPE_OPTIONS, "nosniff"),
             (header::CACHE_CONTROL, "no-cache"),
         ],
-        pages.get(locale).to_string(),
+        pages.get(page, locale).to_string(),
+    )
+        .into_response()
+}
+
+fn status(health: &UpstreamHealth) -> Response {
+    let body = serde_json::to_string(&health.snapshot()).expect("status snapshot serializes");
+    (
+        [
+            (header::CONTENT_TYPE, "application/json"),
+            (header::X_CONTENT_TYPE_OPTIONS, "nosniff"),
+            (header::CACHE_CONTROL, "no-store"),
+        ],
+        body,
     )
         .into_response()
 }
@@ -132,10 +183,18 @@ fn asset(content_type: &'static str, body: &'static str) -> Response {
 
 #[derive(Serialize)]
 struct Payload<'a> {
+    page: &'static str,
     locale: &'static str,
     version: &'a str,
     built: &'a str,
     tools: Vec<Tool<'a>>,
+    views: Vec<View>,
+}
+
+#[derive(Serialize)]
+struct View {
+    name: &'static str,
+    path: &'static str,
 }
 
 #[derive(Serialize)]
@@ -156,8 +215,9 @@ struct Argument {
     values: Vec<String>,
 }
 
-fn render(locale: Locale, version: &str, built: &str, tools: &[ToolDoc]) -> String {
+fn render(page: Page, locale: Locale, version: &str, built: &str, tools: &[ToolDoc]) -> String {
     let payload = Payload {
+        page: page.code(),
         locale: locale.code(),
         version,
         built,
@@ -174,6 +234,13 @@ fn render(locale: Locale, version: &str, built: &str, tools: &[ToolDoc]) -> Stri
                 }
             })
             .collect(),
+        views: RecentView::ALL
+            .into_iter()
+            .map(|view| View {
+                name: view.name(),
+                path: view.path(),
+            })
+            .collect(),
     };
     // An unescaped `</script>` in a description would end the data block early.
     let data = serde_json::to_string(&payload)
@@ -181,6 +248,7 @@ fn render(locale: Locale, version: &str, built: &str, tools: &[ToolDoc]) -> Stri
         .replace('<', "\\u003c");
     SHELL
         .replace("{{lang}}", locale.code())
+        .replace("{{assets}}", page.assets())
         .replace("{{data}}", &data)
 }
 
@@ -307,6 +375,7 @@ mod tests {
     #[test]
     fn injects_tools_and_arguments_as_escaped_json() {
         let page = render(
+            Page::Guide,
             Locale::En,
             "1.2.3",
             "2026-01-02",
@@ -340,6 +409,7 @@ mod tests {
 
         let data = payload(&page);
         assert_eq!(data["locale"], "en");
+        assert_eq!(data["page"], "guide");
         assert_eq!(data["version"], "1.2.3");
         assert_eq!(data["built"], "2026-01-02");
         let search = &data["tools"][0];
@@ -414,7 +484,7 @@ mod tests {
     #[test]
     fn page_carries_the_real_tool_definitions() {
         let tools = real_tools();
-        let page = render(Locale::Ko, "1.2.3", "2026-01-02", &tools);
+        let page = render(Page::Guide, Locale::Ko, "1.2.3", "2026-01-02", &tools);
         assert!(page.contains(r#"<html lang="ko">"#));
         let data = payload(&page);
         assert_eq!(data["locale"], "ko");
@@ -424,6 +494,23 @@ mod tests {
             assert_eq!(rendered["name"], tool.name);
             assert_eq!(rendered["description"], tool.description);
         }
+    }
+
+    #[test]
+    fn api_page_loads_assets_from_its_own_directory_and_lists_the_views() {
+        let page = render(Page::Api, Locale::En, "1.2.3", "2026-01-02", &real_tools());
+        assert!(page.contains(r#"<link rel="stylesheet" href="app.css">"#));
+        assert!(page.contains(r#"<script type="module" src="app.js"></script>"#));
+        assert!(!page.contains("{{"));
+        let data = payload(&page);
+        assert_eq!(data["page"], "api");
+        let views = data["views"].as_array().unwrap();
+        assert_eq!(views.len(), RecentView::ALL.len());
+        assert_eq!(views[4]["name"], "latest-from-last-month-daily");
+        assert_eq!(
+            views[4]["path"],
+            "/v2/search/billing/lastest-from-last-month-daily"
+        );
     }
 
     #[test]
@@ -448,6 +535,7 @@ mod tests {
         assert!(STYLESHEET.contains("prefers-color-scheme"));
         assert!(CONTENT_SECURITY_POLICY.contains("script-src 'self'"));
         assert!(CONTENT_SECURITY_POLICY.contains("style-src 'self'"));
+        assert!(CONTENT_SECURITY_POLICY.contains("connect-src 'self'"));
         assert!(!CONTENT_SECURITY_POLICY.contains("unsafe-inline"));
     }
 

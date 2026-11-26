@@ -21,7 +21,7 @@ function copy(text: string): Promise<void> {
   return navigator.clipboard.writeText(text).catch(() => legacyCopy(text));
 }
 
-export function Snippet({ text }: { text: string }) {
+export function CopyButton({ text }: { text: string }) {
   const { t } = useI18n();
   const [copied, setCopied] = useState(false);
   const timer = useRef<number | undefined>(undefined);
@@ -40,26 +40,41 @@ export function Snippet({ text }: { text: string }) {
   };
 
   return (
+    <button
+      className={copied ? "copy done" : "copy"}
+      type="button"
+      aria-label={copied ? t("ui.copied") : t("ui.copy")}
+      aria-live="polite"
+      onClick={onCopy}
+    >
+      <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        {copied ? (
+          <path d="M3 8.5l3.2 3.2L13 5" />
+        ) : (
+          <>
+            <rect x="5.5" y="5.5" width="8" height="8" rx="1.5" />
+            <path d="M10.5 5.5v-1.5a1.5 1.5 0 0 0-1.5-1.5h-5a1.5 1.5 0 0 0-1.5 1.5v5a1.5 1.5 0 0 0 1.5 1.5h1.5" />
+          </>
+        )}
+      </svg>
+    </button>
+  );
+}
+
+export function Value({ text }: { text: string }) {
+  return (
+    <span className="copyable">
+      <span className="name">{text}</span>
+      <CopyButton text={text} />
+    </span>
+  );
+}
+
+export function Snippet({ text }: { text: string }) {
+  return (
     <div className="snippet">
       <pre>{text}</pre>
-      <button
-        className={copied ? "copy done" : "copy"}
-        type="button"
-        aria-label={copied ? t("ui.copied") : t("ui.copy")}
-        aria-live="polite"
-        onClick={onCopy}
-      >
-        <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          {copied ? (
-            <path d="M3 8.5l3.2 3.2L13 5" />
-          ) : (
-            <>
-              <rect x="5.5" y="5.5" width="8" height="8" rx="1.5" />
-              <path d="M10.5 5.5v-1.5a1.5 1.5 0 0 0-1.5-1.5h-5a1.5 1.5 0 0 0-1.5 1.5v5a1.5 1.5 0 0 0 1.5 1.5h1.5" />
-            </>
-          )}
-        </svg>
-      </button>
+      <CopyButton text={text} />
     </div>
   );
 }

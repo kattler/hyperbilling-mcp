@@ -172,10 +172,10 @@ async fn read_limited(mut response: reqwest::Response) -> Result<String, reqwest
 fn api_message(status: u16, body: &str, secret: &str) -> String {
     let hint = match status {
         401 => {
-            "credentials rejected (header missing, key expired, or client id does not own the key)"
+            "credentials rejected (header missing, key expired, client id does not own the key, or a linked account is not readable with this key)"
         }
         403 => "authenticated, but no linked account is visible to this client id",
-        429 => "hourly limit of 500 requests exceeded, retry later",
+        429 => "hourly limit of 2000 requests exceeded, retry later",
         _ => "",
     };
     // The upstream 401 message echoes the submitted key, so it is never forwarded.
@@ -422,7 +422,7 @@ pub mod tests {
         assert_eq!(api_message(404, "", "k"), "no detail");
         assert_eq!(
             api_message(429, "", "k"),
-            "hourly limit of 500 requests exceeded, retry later"
+            "hourly limit of 2000 requests exceeded, retry later"
         );
         assert!(api_message(403, r#"{"message":"denied"}"#, "k").ends_with(": denied"));
         assert_eq!(api_message(502, &"x".repeat(900), "").len(), 500);
