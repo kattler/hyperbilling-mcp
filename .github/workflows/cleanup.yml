@@ -1,0 +1,39 @@
+name: Cleanup
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cleanup
+  cancel-in-progress: false
+
+jobs:
+  runs:
+    runs-on: ubuntu-26.04
+    permissions:
+      actions: write
+    steps:
+      - name: Delete every completed workflow run
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          CURRENT_RUN: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          gh api --paginate "repos/${REPO}/actions/runs?status=completed&per_page=100" \
+            --jq '.workflow_runs[].id' > runs.txt
+          deleted=0
+          failed=0
+          while read -r id; do
+            [ "$id" = "$CURRENT_RUN" ] && continue
+            if gh api -X DELETE "repos/${REPO}/actions/runs/${id}" --silent; then
+              deleted=$((deleted + 1))
+            else
+              failed=$((failed + 1))
+            fi
+          done < runs.txt
+          echo "Deleted ${deleted} runs, ${failed} failed" >> "$GITHUB_STEP_SUMMARY"
+          [ "$failed" -eq 0 ]
