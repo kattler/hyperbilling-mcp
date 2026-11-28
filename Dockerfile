@@ -4,7 +4,7 @@ FROM scratch
 
 LABEL org.opencontainers.image.title="hyperbilling-mcp" \
       org.opencontainers.image.description="Model Context Protocol server for the Megazone HyperBilling Open API" \
-      org.opencontainers.image.version="0.1.0" \
+      org.opencontainers.image.version="0.1.1" \
       org.opencontainers.image.licenses="Apache-2.0" \
       org.opencontainers.image.base.name="scratch" \
       org.opencontainers.image.deprecated="false"

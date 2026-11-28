@@ -2,6 +2,20 @@
 
 Notable changes to hyperbilling-mcp, newest first. Entries are headed by the image version and its release date as `YYYY-MM-DD KST`. Chart-only changes are listed under the chart version.
 
+## 0.1.1 (2026-11-28 KST)
+
+### Security
+
+- Links on the documentation page percent-encode the tool name and the language they carry, closing the four findings of the first CodeQL scan.
+
+### Changed
+
+- Built with Rust 1.100.1.
+
+### Chart 0.1.1
+
+- `appVersion` 0.1.1.
+
 ## 0.1.0 (2026-11-26 KST)
 
 First release.

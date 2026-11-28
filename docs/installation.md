@@ -50,7 +50,7 @@ The server has no authentication of its own. Do not expose it with a [fallback c
 docker run --rm -p 8080:8080 -p 8081:8081 \
   -e HYPERBILLING_CLIENT_ID=user@example.com \
   -e HYPERBILLING_CLIENT_SECRET="${HYPERBILLING_API_KEY}" \
-  ghcr.io/kattler/hyperbilling-mcp:0.1.0
+  ghcr.io/kattler/hyperbilling-mcp:0.1.1
 ```
 
 The image is `scratch` with a static binary and a CA bundle. It runs as UID 65532 with a read-only root filesystem and no capabilities.
