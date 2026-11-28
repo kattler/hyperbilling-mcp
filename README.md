@@ -2,7 +2,7 @@
 
 [![Container](https://img.shields.io/badge/ghcr.io-hyperbilling--mcp-black?style=flat-square&logo=docker&logoColor=white)](https://github.com/kattler/hyperbilling-mcp/pkgs/container/hyperbilling-mcp)
 [![Helm Chart](https://img.shields.io/badge/ghcr.io-charts%2Fhyperbilling--mcp-black?style=flat-square&logo=helm&logoColor=white)](https://github.com/kattler/hyperbilling-mcp/pkgs/container/charts%2Fhyperbilling-mcp)
-[![Rust](https://img.shields.io/badge/rust-1.100.0-black?style=flat-square&logo=rust&logoColor=white)](https://www.rust-lang.org/)
+[![Rust](https://img.shields.io/badge/rust-1.100.1-black?style=flat-square&logo=rust&logoColor=white)](https://www.rust-lang.org/)
 [![License](https://img.shields.io/github/license/kattler/hyperbilling-mcp?style=flat-square&color=black)](LICENSE)
 
 A Model Context Protocol server that exposes the Megazone HyperBilling Open API as read-only tools, so an agent can answer AWS cost questions from billing data. One tool call is one HyperBilling request.

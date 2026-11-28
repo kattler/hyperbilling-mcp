@@ -1,6 +1,6 @@
 # Development
 
-The server is one Rust crate, built with Rust 1.100.0. It embeds the documentation page, a React application in `web/` built with Node 24. `make` targets build the page first. A bare `cargo build` needs `make web` once, and again after a change under `web/`.
+The server is one Rust crate, built with Rust 1.100.1. It embeds the documentation page, a React application in `web/` built with Node 24. `make` targets build the page first. A bare `cargo build` needs `make web` once, and again after a change under `web/`.
 
 ```console
 export HYPERBILLING_CLIENT_ID=user@example.com

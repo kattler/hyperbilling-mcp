@@ -25,7 +25,7 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
         with:
-          toolchain: 1.100.0
+          toolchain: 1.100.1
           components: rustfmt, clippy, llvm-tools-preview
 
       - name: Cache cargo

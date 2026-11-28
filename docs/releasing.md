@@ -33,4 +33,4 @@ To rebuild a published version, run the Release workflow by hand with `force` en
 
 ## Toolchain pins
 
-The build pins Rust 1.100.0, zig 0.15.2, cargo-zigbuild 0.23.0, and Node 24.18.0 in `web/.node-version`. Statically linked musl binaries built with zig 0.16.0 grew their memory without bound at runtime, so bump zig only after watching the memory of a rebuilt image stay flat.
+The build pins Rust 1.100.1, zig 0.15.2, cargo-zigbuild 0.23.0, and Node 24.18.0 in `web/.node-version`. Statically linked musl binaries built with zig 0.16.0 grew their memory without bound at runtime, so bump zig only after watching the memory of a rebuilt image stay flat.
