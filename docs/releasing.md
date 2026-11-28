@@ -10,7 +10,7 @@ A release starts on a push to `main` that changes a version value, and skips a v
 ## Steps
 
 1. Bump the version in `Cargo.toml` and the `Dockerfile` label together. Set `appVersion` in `Chart.yaml` to the same value and bump the chart `version`.
-2. Add the release to `CHANGELOG.md`.
+2. Add the release to `CHANGELOG.md`, headed by the version and the release date as `YYYY-MM-DD KST`.
 3. Push to `main`.
 
 The image release runs these jobs in order, and a failing job stops the release before anything is pushed.

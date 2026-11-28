@@ -1,8 +1,8 @@
 # Changelog
 
-Notable changes to hyperbilling-mcp, newest first. Entries are headed by the image version and its release date (KST). Chart-only changes are listed under the chart version.
+Notable changes to hyperbilling-mcp, newest first. Entries are headed by the image version and its release date as `YYYY-MM-DD KST`. Chart-only changes are listed under the chart version.
 
-## 0.1.0 (2026-11-26)
+## 0.1.0 (2026-11-26 KST)
 
 First release.
 
