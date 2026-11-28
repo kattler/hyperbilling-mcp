@@ -90,7 +90,7 @@ function Navigation({ data }: { data: DocsData }) {
         <span className="count">{data.tools.length}</span>
       </h2>
       {data.tools.map((tool) => (
-        <a className="mono" key={tool.name} href={`#${tool.name}`}>
+        <a className="mono" key={tool.name} href={`#${encodeURIComponent(tool.name)}`}>
           {tool.name.replace(/^hyperbilling_/, "")}
         </a>
       ))}
@@ -109,7 +109,7 @@ function Tabs({ page }: { page: PageName }) {
       {tabs.map((tab) => (
         <a
           key={tab.name}
-          href={`${ROUTES[page][tab.name]}?lang=${locale}`}
+          href={`${ROUTES[page][tab.name]}?lang=${encodeURIComponent(locale)}`}
           className={tab.name === page ? "on" : undefined}
           aria-current={tab.name === page ? "page" : undefined}
         >
@@ -136,7 +136,7 @@ function Page({ data, onLocale }: { data: DocsData; onLocale: (locale: Locale) =
       </a>
       <div className="top">
         <div className="bar">
-          <a className="brand" href={`${routes.guide}?lang=${locale}`} aria-label={t("ui.home")}>
+          <a className="brand" href={`${routes.guide}?lang=${encodeURIComponent(locale)}`} aria-label={t("ui.home")}>
             <BrandLogo />
           </a>
           <Tabs page={data.page} />
@@ -151,7 +151,7 @@ function Page({ data, onLocale }: { data: DocsData; onLocale: (locale: Locale) =
         <Navigation data={data} />
         <main id="content" tabIndex={-1}>
           {data.page === "api" ? (
-            <Api data={data} guide={`${routes.guide}?lang=${locale}`} />
+            <Api data={data} guide={`${routes.guide}?lang=${encodeURIComponent(locale)}`} />
           ) : (
             <>
               <div className="hero" id="overview">

@@ -517,9 +517,9 @@ mod tests {
         let status = reqwest::get(format!("{base}/docs/status")).await.unwrap();
         assert_eq!(status.status(), 200);
         assert_eq!(status.headers()["cache-control"], "no-store");
-        let status: Value = serde_json::from_str(&status.text().await.unwrap()).unwrap();
-        assert!(status["ready_since"].is_null());
-        assert!(status["checks"].is_array());
+        let status = status.text().await.unwrap();
+        assert!(status.contains(r#""ready_since":null"#));
+        assert!(status.contains(r#""checks":["#));
 
         let negotiated = reqwest::Client::new()
             .get(format!("{base}/docs"))

@@ -304,7 +304,7 @@ function Endpoint({
       <p className="called">
         {t("api.tool")}{" "}
         {tool ? (
-          <a className="ref" href={`${guide}#${tool.name}`}>
+          <a className="ref" href={`${guide}#${encodeURIComponent(tool.name)}`}>
             {tool.name}
           </a>
         ) : (
@@ -560,7 +560,7 @@ export function Api({ data, guide }: { data: DocsData; guide: string }) {
                   <td>{t(row.description)}</td>
                   <td>
                     {row.tool ? (
-                      <a className="ref" href={`${guide}#${row.tool.name}`}>
+                      <a className="ref" href={`${guide}#${encodeURIComponent(row.tool.name)}`}>
                         {row.tool.name.replace(/^hyperbilling_/, "")}
                       </a>
                     ) : (
